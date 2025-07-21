@@ -40,3 +40,6 @@ slides.json
 # certs
 key.pem
 cert.pem
+
+# environment variables
+.env
