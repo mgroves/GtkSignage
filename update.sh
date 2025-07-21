@@ -10,7 +10,7 @@ SERVICE_NAME="gtk-signage"
 
 echo "Updating signage software from GitHub..."
 
-# Ensure git is installed
+# Make sure git is installed
 sudo apt update
 sudo apt install -y git
 
@@ -22,11 +22,14 @@ fi
 
 cd "$INSTALL_DIR"
 
-echo "Fetching latest changes..."
-git fetch origin "$BRANCH"
-git reset --hard "origin/$BRANCH"
+echo "Fetching latest code from $BRANCH branch..."
+sudo git fetch origin "$BRANCH"
+sudo git reset --hard "origin/$BRANCH"
+
+echo "Reinstalling Python dependencies..."
+sudo pip3 install --no-cache-dir -r requirements.txt
 
 echo "Restarting signage service..."
 sudo systemctl restart "$SERVICE_NAME"
 
-echo "Update complete."
+echo "✅ Update complete."

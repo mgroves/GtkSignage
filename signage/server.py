@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, render_template
 
 def run_flask():
     print("Flask server starting...")
@@ -6,10 +6,10 @@ def run_flask():
 
     @app.route("/")
     def index():
-        return "<h1>Signage is running</h1>"
+        return render_template("index.html")
 
     @app.route("/admin")
     def admin():
-        return "<h2>Admin Panel</h2><p>This will allow editing slides.</p>"
+        return render_template("admin.html")
 
     app.run(host="0.0.0.0", port=6969)
