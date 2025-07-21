@@ -1,5 +1,6 @@
 import os
 from flask import Flask, render_template
+from signage.slidestore import SlideStore
 
 def run_flask():
     print("Flask server starting...")
@@ -11,8 +12,8 @@ def run_flask():
 
     @app.route("/admin")
     def admin():
-        return render_template("admin.html")
-
+        return render_template("admin.html", slides=SlideStore.get_active_slides())
+    
     # Load SSL certs if available
     cert_path = os.path.join(os.path.dirname(__file__), "..", "cert.pem")
     key_path = os.path.join(os.path.dirname(__file__), "..", "key.pem")

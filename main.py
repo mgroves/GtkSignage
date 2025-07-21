@@ -1,14 +1,23 @@
 from signage.ui import SignageWindow
 from signage.server import run_flask
 import gi
+import threading
+import sys
+
 gi.require_version("Gtk", "3.0")
 from gi.repository import Gtk
-import threading
 
 if __name__ == "__main__":
-    print("Flask server starting...")
-    threading.Thread(target=run_flask, daemon=True).start()
+    try:
+        print("Flask server starting...")
+        # Run Flask in a background daemon thread
+        flask_thread = threading.Thread(target=run_flask, daemon=True)
+        flask_thread.start()
 
-    print("Starting GTK...")
-    win = SignageWindow()
-    Gtk.main()
+        print("Starting GTK...")
+        win = SignageWindow()
+        Gtk.main()
+    except KeyboardInterrupt:
+        print("Caught Ctrl+C, shutting down.")
+        Gtk.main_quit()
+        sys.exit(0)

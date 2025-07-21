@@ -1,10 +1,96 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Admin Panel</title>
+    <meta charset="UTF-8">
+    <title>Admin - GTK Signage</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 2rem;
+            background: #f9f9f9;
+        }
+
+        h1 {
+            margin-bottom: 1rem;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            margin: 0 4px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .btn-add {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .btn-edit {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .btn-delete {
+            background-color: #f44336;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 0 4px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background-color: #eee;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .actions {
+            white-space: nowrap;
+        }
+    </style>
 </head>
 <body>
-    <h2>Admin Panel</h2>
-    <p>This will allow editing slides.</p>
+    <h1>Slides Admin</h1>
+    <button class="btn btn-add" onclick="location.href='/admin/add'">+ Add Slide</button>
+    <br><br>
+    <table>
+        <thead>
+            <tr>
+                <th>Source</th>
+                <th>Duration</th>
+                <th>Start</th>
+                <th>End</th>
+                <th class="actions">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for slide in slides %}
+            <tr>
+                <td>{{ slide.source }}</td>
+                <td>{{ slide.duration }}</td>
+                <td>{{ slide.start or "N/A" }}</td>
+                <td>{{ slide.end or "N/A" }}</td>
+                <td class="actions">
+                    <a href="/admin/edit/{{ loop.index0 }}" class="btn btn-edit">Edit</a>
+                    <a href="/admin/delete/{{ loop.index0 }}" class="btn btn-delete">Delete</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </body>
 </html>
