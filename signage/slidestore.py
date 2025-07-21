@@ -64,3 +64,28 @@ class SlideStore:
         # Forces the next call to get_active_slides() to reload the slide file,
         # even if the file hasn't been modified.
         cls._last_modified_time = 0
+
+    @classmethod
+    def add_slide(cls, slide_data):
+        # Load current slide list from file
+        try:
+            with open(cls.SLIDE_FILE, "r") as file:
+                current_data = json.load(file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            current_data = []
+
+        # Append the new slide
+        current_data.append({
+            "source": slide_data["source"],
+            "duration": slide_data["duration"],
+            "start": slide_data["start"],
+            "end": slide_data["end"]
+        })
+
+        # Save back to file
+        try:
+            with open(cls.SLIDE_FILE, "w") as file:
+                json.dump(current_data, file, indent=4)
+            cls.force_reload()
+        except Exception as e:
+            print(f"Failed to save slide: {e}")
