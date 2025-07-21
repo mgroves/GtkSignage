@@ -23,8 +23,8 @@
             <tr>
                 <td>{{ slide.source }}</td>
                 <td>{{ slide.duration }}</td>
-                <td>{{ slide.start or "N/A" }}</td>
-                <td>{{ slide.end or "N/A" }}</td>
+                <td>{{ slide.start|format_ampm }}</td>
+                <td>{{ slide.end|format_ampm }}</td>
                 <td class="actions">
                     <a href="/admin/edit/{{ loop.index0 }}" class="btn btn-edit">Edit</a>
                     <a href="/admin/delete/{{ loop.index0 }}" class="btn btn-delete"

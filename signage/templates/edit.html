@@ -7,20 +7,32 @@
 </head>
 <body>
     <h1>Edit Slide</h1>
-    <form action="/admin/edit/{{ index }}" method="post">
+    <form action="/admin/edit/{{ index }}" method="post" onsubmit="return validateTimes()">
         <label for="source">Source</label>
         <input type="text" id="source" name="source" value="{{ slide.source }}" required>
-
+    
         <label for="duration">Duration (seconds)</label>
-        <input type="number" id="duration" name="duration" value="{{ slide.duration }}" required>
-
-        <label for="start">Start Time (optional, HH:MM)</label>
-        <input type="text" id="start" name="start" value="{{ slide.start or '' }}">
-
-        <label for="end">End Time (optional, HH:MM)</label>
-        <input type="text" id="end" name="end" value="{{ slide.end or '' }}">
-
+        <input type="number" id="duration" name="duration" value="{{ slide.duration }}" required min="1">
+    
+        <label for="start">Start Date & Time (optional)</label>
+        <input type="datetime-local" id="start" name="start" value="{{ slide.start or '' }}">
+    
+        <label for="end">End Date & Time (optional)</label>
+        <input type="datetime-local" id="end" name="end" value="{{ slide.end or '' }}">
+    
         <button type="submit">Save</button>
     </form>
+    
+    <script>
+    function validateTimes() {
+        const start = document.getElementById('start').value;
+        const end = document.getElementById('end').value;
+        if (start && end && new Date(start) >= new Date(end)) {
+            alert("End date/time must be later than start date/time.");
+            return false;
+        }
+        return true;
+    }
+    </script>    
 </body>
 </html>

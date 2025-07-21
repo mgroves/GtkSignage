@@ -7,20 +7,32 @@
 </head>
 <body>
     <h1>Add Slide</h1>
-    <form action="/admin/add" method="post">
+    <form action="/admin/add" method="post" onsubmit="return validateTimes()">
         <label for="source">Source (URL or file path)</label>
         <input type="text" id="source" name="source" required>
-
+    
         <label for="duration">Duration (seconds)</label>
-        <input type="number" id="duration" name="duration" required>
-
-        <label for="start">Start Time (optional, HH:MM)</label>
-        <input type="text" id="start" name="start">
-
-        <label for="end">End Time (optional, HH:MM)</label>
-        <input type="text" id="end" name="end">
-
+        <input type="number" id="duration" name="duration" required min="1">
+    
+        <label for="start">Start Date & Time (optional)</label>
+        <input type="datetime-local" id="start" name="start">
+    
+        <label for="end">End Date & Time (optional)</label>
+        <input type="datetime-local" id="end" name="end">
+    
         <button type="submit">Add Slide</button>
     </form>
+    
+    <script>
+    function validateTimes() {
+        const start = document.getElementById('start').value;
+        const end = document.getElementById('end').value;
+        if (start && end && new Date(start) >= new Date(end)) {
+            alert("End date/time must be later than start date/time.");
+            return false;
+        }
+        return true;
+    }
+    </script>
 </body>
 </html>

@@ -4,113 +4,122 @@ from signage.slidestore import SlideStore
 from dotenv import load_dotenv
 from signage.models import Slide
 from datetime import datetime
+from functools import wraps
 
+load_dotenv()
+
+app = Flask(__name__)
+app.secret_key = os.getenv("FLASK_SECRET_KEY")
+
+admin_user = os.getenv("ADMIN_USERNAME")
+admin_pass = os.getenv("ADMIN_PASSWORD")
+
+@app.template_filter('format_ampm')
+def format_ampm(value):
+    if not value:
+        return "N/A"
+    try:
+        if isinstance(value, str):
+            dt = datetime.fromisoformat(value)
+        elif isinstance(value, datetime):
+            dt = value
+        else:
+            return "N/A"
+        return dt.strftime("%-m/%-d/%Y %-I:%M%p").lower()
+    except Exception:
+        return "N/A"
+
+
+# Auth helpers
+def is_logged_in():
+    return session.get("logged_in", False)
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not is_logged_in():
+            return redirect(url_for("login", next=request.path))
+        return f(*args, **kwargs)
+    return decorated
+
+# Routes
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    error = None
+    if request.method == "POST":
+        if request.form["username"] == admin_user and request.form["password"] == admin_pass:
+            session["logged_in"] = True
+            return redirect(request.args.get("next") or url_for("admin"))
+        else:
+            error = "Invalid credentials"
+    return render_template("login.html", error=error)
+
+@app.route("/logout")
+def logout():
+    session.pop("logged_in", None)
+    return redirect(url_for("login"))
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/admin")
+@login_required
+def admin():
+    return render_template("admin.html", slides=SlideStore.get_active_slides())
+
+@app.route("/admin/add", methods=["GET", "POST"])
+@login_required
+def admin_add():
+    if request.method == "POST":
+        SlideStore.add_slide({
+            "source": request.form["source"],
+            "duration": int(request.form["duration"]),
+            "start": request.form["start"],
+            "end": request.form["end"]
+        })
+        return redirect(url_for("admin"))
+    return render_template("add.html")
+
+@app.route("/admin/edit/<int:index>", methods=["GET", "POST"])
+@login_required
+def edit_slide(index):
+    SlideStore.force_reload()
+    slides = SlideStore._slides
+    if index < 0 or index >= len(slides):
+        return "Slide not found", 404
+
+    if request.method == "POST":
+        source = request.form["source"]
+        duration = int(request.form["duration"])
+        start_str = request.form.get("start")
+        end_str = request.form.get("end")
+
+        start = datetime.fromisoformat(start_str) if start_str else None
+        end = datetime.fromisoformat(end_str) if end_str else None
+
+        slides[index] = Slide(source=source, duration=duration, start=start, end=end)
+        SlideStore.save_slides(slides)
+        return redirect(url_for("admin"))
+
+    return render_template("edit.html", slide=slides[index], index=index)
+
+@app.route("/admin/delete/<int:index>")
+@login_required
+def delete_slide(index):
+    slides = SlideStore.get_all_slides()
+    if 0 <= index < len(slides):
+        del slides[index]
+        SlideStore.save_slides(slides)
+        SlideStore.force_reload()
+    return redirect("/admin")
+
+# Entrypoint
 def run_flask():
     print("Flask server starting...")
-    app = Flask(__name__)
-    load_dotenv()
-
-    app.secret_key = os.getenv("FLASK_SECRET_KEY")
-    admin_user = os.getenv("ADMIN_USERNAME")
-    admin_pass = os.getenv("ADMIN_PASSWORD")
-
-    def is_logged_in():
-        return session.get("logged_in", False)
-
-    def login_required(f):
-        from functools import wraps
-        @wraps(f)
-        def decorated(*args, **kwargs):
-            if not is_logged_in():
-                return redirect(url_for("login", next=request.path))
-            return f(*args, **kwargs)
-        return decorated
-
-    @app.route("/login", methods=["GET", "POST"])
-    def login():
-        error = None
-        if request.method == "POST":
-            if request.form["username"] == admin_user and request.form["password"] == admin_pass:
-                session["logged_in"] = True
-                return redirect(request.args.get("next") or url_for("admin"))
-            else:
-                error = "Invalid credentials"
-        return render_template("login.html", error=error)
-
-    @app.route("/logout")
-    def logout():
-        session.pop("logged_in", None)
-        return redirect(url_for("login"))
-
-    @app.route("/")
-    def index():
-        return render_template("index.html")
-
-    @app.route("/admin")
-    @login_required
-    def admin():
-        return render_template("admin.html", slides=SlideStore.get_active_slides())
-
-    @app.route("/admin/add", methods=["GET", "POST"])
-    @login_required
-    def admin_add():
-        if request.method == "POST":
-            SlideStore.add_slide({
-                "source": request.form["source"],
-                "duration": int(request.form["duration"]),
-                "start": request.form["start"],
-                "end": request.form["end"]
-            })
-            return redirect(url_for("admin"))
-        return render_template("add.html")
-
-    @app.route("/admin/edit/<int:index>", methods=["GET", "POST"])
-    @login_required
-    def edit_slide(index):
-        SlideStore.force_reload()
-        slides = SlideStore._slides  # full list
-        if index < 0 or index >= len(slides):
-            return "Slide not found", 404
-
-        if request.method == "POST":
-            source = request.form["source"]
-            duration = int(request.form["duration"])
-            start_str = request.form.get("start")
-            end_str = request.form.get("end")
-
-            # Safely convert strings to datetime
-            start = datetime.fromisoformat(start_str) if start_str else None
-            end = datetime.fromisoformat(end_str) if end_str else None
-
-            slides[index] = Slide(
-                source=source,
-                duration=duration,
-                start=start,
-                end=end
-            )
-            SlideStore.save_slides(slides)
-            return redirect(url_for("admin"))
-
-        return render_template("edit.html", slide=slides[index], index=index)
-
-    @app.route("/admin/delete/<int:index>")
-    @login_required
-    def delete_slide(index):
-        slides = SlideStore.get_all_slides()
-        if 0 <= index < len(slides):
-            del slides[index]
-            SlideStore.save_slides(slides)
-            SlideStore.force_reload()
-        return redirect("/admin")
-
-
-
-
-
 
     cert_path = os.path.join(os.path.dirname(__file__), "..", "cert.pem")
     key_path = os.path.join(os.path.dirname(__file__), "..", "key.pem")
     ssl_context = (cert_path, key_path) if os.path.exists(cert_path) and os.path.exists(key_path) else None
 
     app.run(host="0.0.0.0", port=6969, ssl_context=ssl_context)
-
