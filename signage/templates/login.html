@@ -1,16 +1,17 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Login</title>
+    <meta charset="UTF-8">
+    <title>Login - GTK Signage</title>
 </head>
 <body>
-    <h2>Login</h2>
+    <h1>Admin Login</h1>
     {% if error %}
-        <p style="color:red">{{ error }}</p>
+    <p style="color:red">{{ error }}</p>
     {% endif %}
-    <form method="POST">
-        <label>Username: <input name="username" /></label><br>
-        <label>Password: <input name="password" type="password" /></label><br>
+    <form method="post">
+        <label>Username: <input name="username" type="text"></label><br>
+        <label>Password: <input name="password" type="password"></label><br><br>
         <button type="submit">Login</button>
     </form>
 </body>

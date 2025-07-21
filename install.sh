@@ -35,7 +35,7 @@ echo "Creating .env file..."
 cat <<EOF | sudo tee .env > /dev/null
 ADMIN_USERNAME=$ADMIN_USERNAME
 ADMIN_PASSWORD=$ADMIN_PASSWORD
-FLASK_SECRET=$FLASK_SECRET
+FLASK_SECRET_KEY=$FLASK_SECRET
 EOF
 
 # Install required Python packages

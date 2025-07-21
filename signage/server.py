@@ -1,59 +1,77 @@
 import os
-from flask import Flask, render_template, request, redirect, session, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 from signage.slidestore import SlideStore
 from dotenv import load_dotenv
 
 def run_flask():
     print("Flask server starting...")
+    app = Flask(__name__)
     load_dotenv()
 
-    app = Flask(__name__)
-    app.secret_key = os.getenv("FLASK_SECRET")
+    app.secret_key = os.getenv("FLASK_SECRET_KEY")
+    admin_user = os.getenv("ADMIN_USERNAME")
+    admin_pass = os.getenv("ADMIN_PASSWORD")
 
-    ADMIN_USERNAME = os.getenv("ADMIN_USERNAME")
-    ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD")
+    def is_logged_in():
+        return session.get("logged_in", False)
+
+    def login_required(f):
+        from functools import wraps
+        @wraps(f)
+        def decorated(*args, **kwargs):
+            if not is_logged_in():
+                return redirect(url_for("login", next=request.path))
+            return f(*args, **kwargs)
+        return decorated
+
+    @app.route("/login", methods=["GET", "POST"])
+    def login():
+        error = None
+        if request.method == "POST":
+            if request.form["username"] == admin_user and request.form["password"] == admin_pass:
+                session["logged_in"] = True
+                return redirect(request.args.get("next") or url_for("admin"))
+            else:
+                error = "Invalid credentials"
+        return render_template("login.html", error=error)
+
+    @app.route("/logout")
+    def logout():
+        session.pop("logged_in", None)
+        return redirect(url_for("login"))
 
     @app.route("/")
     def index():
         return render_template("index.html")
 
     @app.route("/admin")
+    @login_required
     def admin():
-        if not session.get("logged_in"):
-            return redirect(url_for("login"))
         return render_template("admin.html", slides=SlideStore.get_active_slides())
 
-    @app.route("/admin/add", methods=["GET"])
-    def add_slide_form():
+    @app.route("/admin/add", methods=["GET", "POST"])
+    @login_required
+    def admin_add():
+        if request.method == "POST":
+            SlideStore.add_slide({
+                "source": request.form["source"],
+                "duration": int(request.form["duration"]),
+                "start": request.form["start"],
+                "end": request.form["end"]
+            })
+            return redirect(url_for("admin"))
         return render_template("add.html")
 
-    @app.route("/admin/add", methods=["POST"])
-    def add_slide():
-        new_slide = {
-            "source": request.form["source"],
-            "duration": int(request.form["duration"]),
-            "start": request.form.get("start") or None,
-            "end": request.form.get("end") or None,
-            "active": True
-        }
-        SlideStore.add_slide(new_slide)
-        return redirect(url_for("admin"))
+    # stubs for edit/delete (add @login_required when implemented)
+    @app.route("/admin/edit/<int:index>")
+    @login_required
+    def admin_edit(index):
+        return f"Edit slide {index}"
 
-    @app.route("/login", methods=["GET", "POST"])
-    def login():
-        if request.method == "POST":
-            username = request.form.get("username")
-            password = request.form.get("password")
-            if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-                session["logged_in"] = True
-                return redirect(url_for("admin"))
-            return render_template("login.html", error="Invalid credentials")
-        return render_template("login.html")
-
-    @app.route("/logout")
-    def logout():
-        session.clear()
-        return redirect(url_for("login"))
+    @app.route("/admin/delete/<int:index>")
+    @login_required
+    def admin_delete(index):
+        return f"Delete slide {index}"
 
     cert_path = os.path.join(os.path.dirname(__file__), "..", "cert.pem")
     key_path = os.path.join(os.path.dirname(__file__), "..", "key.pem")
