@@ -8,9 +8,25 @@
 <body>
     <h1>Edit Slide</h1>
     <form action="/admin/edit/{{ index }}" method="post" onsubmit="return validateTimes()">
-        <label for="source">Source</label>
-        <input type="text" id="source" name="source" value="{{ slide.source }}" required>
+        <input type="hidden" name="source" value="{{ slide.source }}">
+
+        <label>Source</label>
+        
+        {% if slide.source.startswith("file://") %}
+            {% set filepath = slide.source[7:] %}
+            {% set encoded = filepath | urlencode %}
+                <img src="{{ url_for('serve_internal_image', encoded_path=encoded) }}"
+                    id="preview-image"
+                    alt="Slide Image"
+                    style="max-width: 200px; height: auto; cursor: pointer; transition: all 0.2s ease-in-out;"
+                    onclick="toggleImageSize(this)">
+        {% else %}
+            <p><a href="{{ slide.source }}" target="_blank">{{ slide.source }}</a></p>
+        {% endif %}
     
+    
+        
+        
         <label for="duration">Duration (seconds)</label>
         <input type="number" id="duration" name="duration" value="{{ slide.duration }}" required min="1">
     
@@ -34,5 +50,17 @@
         return true;
     }
     </script>    
+    <script>
+        function toggleImageSize(img) {
+            if (img.classList.contains('expanded')) {
+                img.style.maxWidth = '200px';
+                img.classList.remove('expanded');
+            } else {
+                img.style.maxWidth = '100%';
+                img.classList.add('expanded');
+            }
+        }
+    </script>
+    
 </body>
 </html>

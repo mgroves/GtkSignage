@@ -1,5 +1,5 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, session
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, send_file, abort
 from signage.slidestore import SlideStore
 from dotenv import load_dotenv
 from signage.models import Slide
@@ -17,6 +17,7 @@ admin_pass = os.getenv("ADMIN_PASSWORD")
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "..", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+#format date/time
 @app.template_filter('format_ampm')
 def format_ampm(value):
     if not value:
@@ -44,6 +45,27 @@ def login_required(f):
             return redirect(url_for("login", next=request.path))
         return f(*args, **kwargs)
     return decorated
+
+# show uploaded images to admin
+@app.route("/internal-image/<path:encoded_path>")
+@login_required
+def serve_internal_image(encoded_path):
+    import urllib.parse
+
+    full_path = urllib.parse.unquote(encoded_path)
+
+    # Ensure leading slash is restored if missing
+    if not full_path.startswith("/"):
+        full_path = "/" + full_path
+
+    print(f"[DEBUG] Attempting to serve actual file path: {full_path}")
+
+    if not os.path.isfile(full_path):
+        print("[DEBUG] File not found!")
+        return abort(404)
+
+    return send_file(full_path, mimetype="image/*")
+
 
 # Routes
 @app.route("/login", methods=["GET", "POST"])
