@@ -103,3 +103,24 @@ class SlideStore:
         with open(cls.SLIDE_FILE, "w") as f:
             json.dump(data, f, indent=2)
         cls.force_reload()
+
+    @classmethod
+    def get_all_slides(cls):
+        cls._load_slides()
+        return cls._slides
+
+    @classmethod
+    def save_slides(cls, slides):
+        data = []
+        for s in slides:
+            data.append({
+                "source": s.source,
+                "duration": s.duration,
+                "start": s.start.isoformat() if s.start else None,
+                "end": s.end.isoformat() if s.end else None
+            })
+
+        with open(cls.SLIDE_FILE, "w") as f:
+            json.dump(data, f, indent=4)
+
+        cls.force_reload()

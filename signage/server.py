@@ -93,8 +93,24 @@ def run_flask():
 
         return render_template("edit.html", slide=slides[index], index=index)
 
+    @app.route("/admin/delete/<int:index>")
+    @login_required
+    def delete_slide(index):
+        slides = SlideStore.get_all_slides()
+        if 0 <= index < len(slides):
+            del slides[index]
+            SlideStore.save_slides(slides)
+            SlideStore.force_reload()
+        return redirect("/admin")
+
+
+
+
+
+
     cert_path = os.path.join(os.path.dirname(__file__), "..", "cert.pem")
     key_path = os.path.join(os.path.dirname(__file__), "..", "key.pem")
     ssl_context = (cert_path, key_path) if os.path.exists(cert_path) and os.path.exists(key_path) else None
 
     app.run(host="0.0.0.0", port=6969, ssl_context=ssl_context)
+
