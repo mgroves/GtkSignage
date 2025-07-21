@@ -36,3 +36,7 @@ Thumbs.db
 
 # Image cache or slide data if added later
 slides.json
+
+# certs
+key.pem
+cert.pem

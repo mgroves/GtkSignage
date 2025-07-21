@@ -52,4 +52,17 @@ sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE_NAME"
 sudo systemctl restart "$SERVICE_NAME"
 
+# Create self-signed certs if not present
+CERT="$INSTALL_DIR/cert.pem"
+KEY="$INSTALL_DIR/key.pem"
+
+if [ ! -f "$CERT" ] || [ ! -f "$KEY" ]; then
+  echo "Generating self-signed SSL certificate..."
+  sudo openssl req -x509 -nodes -days 365 \
+    -newkey rsa:2048 \
+    -keyout "$KEY" \
+    -out "$CERT" \
+    -subj "/CN=localhost"
+fi
+
 echo "✅ Installation complete. Signage will start on boot and after power loss."
