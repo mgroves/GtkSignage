@@ -1,0 +1,38 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+env/
+venv/
+ENV/
+.venv/
+.mypy_cache/
+.pytest_cache/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# VS Code / IDE settings
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# WSL / Windows generated files
+*.bak
+*.swp
+*.swo
+
+# Compiled GTK resources (if any)
+*.la
+*.lo
+*.o
+*.so
+
+# Image cache or slide data if added later
+slides.json
