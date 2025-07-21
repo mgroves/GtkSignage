@@ -2,13 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Edit Slide</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 2rem; }
-        label { display: block; margin: 10px 0 5px; }
-        input { width: 100%; padding: 8px; margin-bottom: 10px; }
-        button { padding: 10px 20px; }
-    </style>
+    <title>Edit Slide - GTK Signage</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <h1>Edit Slide</h1>
@@ -19,10 +14,10 @@
         <label for="duration">Duration (seconds)</label>
         <input type="number" id="duration" name="duration" value="{{ slide.duration }}" required>
 
-        <label for="start">Start (optional, ISO format)</label>
+        <label for="start">Start Time (optional, HH:MM)</label>
         <input type="text" id="start" name="start" value="{{ slide.start or '' }}">
 
-        <label for="end">End (optional, ISO format)</label>
+        <label for="end">End Time (optional, HH:MM)</label>
         <input type="text" id="end" name="end" value="{{ slide.end or '' }}">
 
         <button type="submit">Save</button>

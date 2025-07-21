@@ -3,52 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Add Slide - GTK Signage</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 2rem;
-            background: #f9f9f9;
-        }
-
-        h1 {
-            margin-bottom: 1rem;
-        }
-
-        form {
-            background: white;
-            padding: 2rem;
-            box-shadow: 0 0 4px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            max-width: 500px;
-        }
-
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: bold;
-        }
-
-        input {
-            width: 100%;
-            padding: 0.5rem;
-            margin-bottom: 1rem;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-
-        .btn {
-            padding: 10px 16px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .btn:hover {
-            background-color: #45a049;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <h1>Add Slide</h1>
@@ -65,7 +20,7 @@
         <label for="end">End Time (optional, HH:MM)</label>
         <input type="text" id="end" name="end">
 
-        <button type="submit" class="btn">Add Slide</button>
+        <button type="submit">Add Slide</button>
     </form>
 </body>
 </html>
