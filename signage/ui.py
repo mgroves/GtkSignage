@@ -5,9 +5,6 @@ from gi.repository import Gtk, WebKit2, GLib
 from signage.models import Slide
 from signage.slidestore import SlideStore
 
-store = SlideStore()
-slides = store.load_slides()
-
 class SignageWindow(Gtk.Window):
     def __init__(self):
         Gtk.Window.__init__(self, title="Signage")
@@ -22,9 +19,10 @@ class SignageWindow(Gtk.Window):
         GLib.timeout_add_seconds(1, self.slide_loop)
 
     def slide_loop(self):
-        active_slides = [s for s in slides if s.is_active()]
+        active_slides = SlideStore.get_active_slides()
         if not active_slides:
             print("No active slides")
+            GLib.timeout_add_seconds(5, self.slide_loop)
             return True
 
         slide = active_slides[self.slide_index % len(active_slides)]
