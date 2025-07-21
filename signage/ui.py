@@ -22,17 +22,21 @@ class SignageWindow(Gtk.Window):
         active_slides = SlideStore.get_active_slides()
         if not active_slides:
             print("No active slides")
+            self.slide_index = 0  # reset index when list is empty
             GLib.timeout_add_seconds(5, self.slide_loop)
             return True
 
-        slide = active_slides[self.slide_index % len(active_slides)]
+        # Make sure index is within bounds even if slides changed
+        self.slide_index = self.slide_index % len(active_slides)
+        slide = active_slides[self.slide_index]
         print(f"Showing slide: {slide.source}")
         self.webview.load_uri(slide.source)
 
         delay = slide.duration
-        self.slide_index += 1
+        self.slide_index = (self.slide_index + 1) % len(active_slides)
         GLib.timeout_add_seconds(delay, self.slide_loop)
         return False
+
 
     def on_destroy(self, *args):
         print("GTK window closed. Shutting down.")
