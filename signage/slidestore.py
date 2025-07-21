@@ -4,43 +4,63 @@ from datetime import datetime
 from .models import Slide
 
 class SlideStore:
+    # Path to the JSON file that defines the slides
     SLIDE_FILE = "slides.json"
+
+    # In-memory list of loaded Slide objects
     _slides = []
-    _last_mtime = 0
+
+    # Last modification time of the JSON file (used to detect changes)
+    _last_modified_time = 0
 
     @classmethod
     def _load_slides(cls):
+        # Internal method that loads the slides from the JSON file.
+        # Only called when the file has changed or when forced.
         try:
-            with open(cls.SLIDE_FILE, "r") as f:
-                data = json.load(f)
+            with open(cls.SLIDE_FILE, "r") as file:
+                raw_data = json.load(file)
             cls._slides = []
-            for item in data:
+
+            for item in raw_data:
                 try:
+                    # Convert start/end strings to datetime if present
+                    start_time = datetime.fromisoformat(item["start"]) if item.get("start") else None
+                    end_time = datetime.fromisoformat(item["end"]) if item.get("end") else None
+
                     slide = Slide(
-                        item["source"],
-                        item["duration"],
-                        datetime.fromisoformat(item["start"]) if item.get("start") else None,
-                        datetime.fromisoformat(item["end"]) if item.get("end") else None
+                        source=item["source"],
+                        duration=item["duration"],
+                        start=start_time,
+                        end=end_time
                     )
                     cls._slides.append(slide)
-                except Exception as e:
-                    print(f"Failed to load slide: {item} ({e})")
-        except Exception as e:
-            print(f"Error reading slide file: {e}")
+                except Exception as error:
+                    print(f"Failed to load slide: {item} ({error})")
+
+        except Exception as error:
+            print(f"Error reading slide file: {error}")
             cls._slides = []
 
     @classmethod
     def get_active_slides(cls):
+        # Returns a list of currently active slides.
+        # Automatically reloads the slide file if it has been modified.
         try:
-            mtime = os.path.getmtime(cls.SLIDE_FILE)
-            if mtime != cls._last_mtime:
-                cls._last_mtime = mtime
+            current_mtime = os.path.getmtime(cls.SLIDE_FILE)
+
+            if current_mtime != cls._last_modified_time:
+                cls._last_modified_time = current_mtime
                 cls._load_slides()
+
         except FileNotFoundError:
             cls._slides = []
 
-        return [s for s in cls._slides if s.is_active()]
+        # Only return slides where the current time is between start and end
+        return [slide for slide in cls._slides if slide.is_active()]
 
     @classmethod
     def force_reload(cls):
-        cls._last_mtime = 0
+        # Forces the next call to get_active_slides() to reload the slide file,
+        # even if the file hasn't been modified.
+        cls._last_modified_time = 0
