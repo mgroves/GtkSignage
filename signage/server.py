@@ -20,15 +20,20 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 #format date/time
 @app.template_filter('format_ampm')
 def format_ampm(value):
-    if not value:
+    if not value or str(value).strip() == "":
         return "N/A"
     try:
         if isinstance(value, str):
-            dt = datetime.fromisoformat(value)
+            dt = datetime.fromisoformat(value.strip())
         elif isinstance(value, datetime):
             dt = value
         else:
             return "N/A"
+
+        # Filter out placeholder datetime extremes
+        if dt == datetime.min or dt == datetime.max:
+            return "N/A"
+
         return dt.strftime("%-m/%-d/%Y %-I:%M%p").lower()
     except Exception:
         return "N/A"
@@ -91,7 +96,7 @@ def index():
 @app.route("/admin")
 @login_required
 def admin():
-    return render_template("admin.html", slides=SlideStore.get_active_slides())
+    return render_template("admin.html", slides=SlideStore.get_all_slides())
 
 @app.route("/admin/add", methods=["GET", "POST"])
 @login_required
@@ -99,6 +104,7 @@ def admin_add():
     if request.method == "POST":
         uploaded_file = request.files.get("file")
         url_input = request.form.get("source", "").strip()
+        hide = bool(request.form.get("hide"))
         filename = None
 
         # Decide which source to use
@@ -116,7 +122,8 @@ def admin_add():
             "source": source,
             "duration": int(request.form["duration"]),
             "start": request.form["start"],
-            "end": request.form["end"]
+            "end": request.form["end"],
+            "hide": hide
         })
         return redirect(url_for("admin"))
 
@@ -125,23 +132,35 @@ def admin_add():
 @app.route("/admin/edit/<int:index>", methods=["GET", "POST"])
 @login_required
 def edit_slide(index):
-    SlideStore.force_reload()
-    slides = SlideStore._slides
+    slides = SlideStore.get_all_slides()  # Use the getter method, not the private _slides
+
     if index < 0 or index >= len(slides):
         return "Slide not found", 404
 
     if request.method == "POST":
-        source = request.form["source"]
-        duration = int(request.form["duration"])
-        start_str = request.form.get("start")
-        end_str = request.form.get("end")
+        try:
+            source = request.form["source"]
+            duration = int(request.form["duration"])
+            start_str = request.form.get("start")
+            end_str = request.form.get("end")
+            hide = "hide" in request.form
 
-        start = datetime.fromisoformat(start_str) if start_str else None
-        end = datetime.fromisoformat(end_str) if end_str else None
+            start = datetime.fromisoformat(start_str) if start_str else None
+            end = datetime.fromisoformat(end_str) if end_str else None
 
-        slides[index] = Slide(source=source, duration=duration, start=start, end=end)
-        SlideStore.save_slides(slides)
-        return redirect(url_for("admin"))
+            slides[index] = Slide(
+                source=source,
+                duration=duration,
+                start=start,
+                end=end,
+                hide=hide
+            )
+
+            SlideStore.save_slides(slides)
+            return redirect(url_for("admin"))
+
+        except Exception as e:
+            return f"Error updating slide: {e}", 400
 
     return render_template("edit.html", slide=slides[index], index=index)
 

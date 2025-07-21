@@ -32,7 +32,8 @@ class SlideStore:
                         source=item["source"],
                         duration=item["duration"],
                         start=start_time,
-                        end=end_time
+                        end=end_time,
+                        hide = item.get("hide", False)
                     )
                     cls._slides.append(slide)
                 except Exception as error:
@@ -79,7 +80,8 @@ class SlideStore:
             "source": slide_data["source"],
             "duration": slide_data["duration"],
             "start": slide_data["start"],
-            "end": slide_data["end"]
+            "end": slide_data["end"],
+            "hide": slide_data.get("hide", False)            
         })
 
         # Save back to file
@@ -98,7 +100,8 @@ class SlideStore:
                 "source": s.source,
                 "duration": s.duration,
                 "start": s.start.isoformat() if s.start else None,
-                "end": s.end.isoformat() if s.end else None
+                "end": s.end.isoformat() if s.end else None,
+                "hide": s.hide
             })
         with open(cls.SLIDE_FILE, "w") as f:
             json.dump(data, f, indent=2)
@@ -109,18 +112,3 @@ class SlideStore:
         cls._load_slides()
         return cls._slides
 
-    @classmethod
-    def save_slides(cls, slides):
-        data = []
-        for s in slides:
-            data.append({
-                "source": s.source,
-                "duration": s.duration,
-                "start": s.start.isoformat() if s.start else None,
-                "end": s.end.isoformat() if s.end else None
-            })
-
-        with open(cls.SLIDE_FILE, "w") as f:
-            json.dump(data, f, indent=4)
-
-        cls.force_reload()

@@ -7,6 +7,9 @@
 </head>
 <body>
     <h1>Add Slide</h1>
+
+    <p><a href="{{ url_for('admin') }}" class="btn">← Back to Admin</a></p>
+
     <form action="/admin/add" method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
         <label for="source">Image URL (optional)</label>
         <input type="text" id="source" name="source">
@@ -23,6 +26,11 @@
         <label for="end">End Date & Time (optional)</label>
         <input type="datetime-local" id="end" name="end">
     
+        <div class="form-check">
+            <input type="checkbox" id="hide" name="hide">
+            <label for="hide">Hidden (do not display this slide)</label>
+        </div>
+
         <button type="submit">Add Slide</button>
     </form>
     

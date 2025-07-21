@@ -88,3 +88,20 @@ tr:hover {
 .actions {
     white-space: nowrap;
 }
+
+.form-check {
+    display: flex;
+    align-items: center;
+    margin: 0.5rem 0 1rem;
+}
+
+.form-check input[type="checkbox"] {
+    width: auto;
+    margin-right: 0.5rem;
+    transform: scale(1.2);
+}
+
+.form-check label {
+    font-weight: bold;
+    margin: 0;
+}
