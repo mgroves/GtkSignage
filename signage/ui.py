@@ -3,11 +3,10 @@ import sys
 import os
 from gi.repository import Gtk, WebKit2, GLib
 from signage.models import Slide
+from signage.slidestore import SlideStore
 
-slides = [
-    Slide("https://grovesmanagementllc.com/menus/screen1", 10),
-    Slide("file://" + os.path.abspath("images/test.jpg"), 5)
-]
+store = SlideStore()
+slides = store.load_slides()
 
 class SignageWindow(Gtk.Window):
     def __init__(self):
