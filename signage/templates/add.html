@@ -7,9 +7,12 @@
 </head>
 <body>
     <h1>Add Slide</h1>
-    <form action="/admin/add" method="post" onsubmit="return validateTimes()">
-        <label for="source">Source (URL or file path)</label>
-        <input type="text" id="source" name="source" required>
+    <form action="/admin/add" method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
+        <label for="source">Image URL (optional)</label>
+        <input type="text" id="source" name="source">
+    
+        <label for="file">Upload Image (optional)</label>
+        <input type="file" id="file" name="file" accept="image/*">
     
         <label for="duration">Duration (seconds)</label>
         <input type="number" id="duration" name="duration" required min="1">
@@ -24,15 +27,24 @@
     </form>
     
     <script>
-    function validateTimes() {
-        const start = document.getElementById('start').value;
-        const end = document.getElementById('end').value;
+    function validateForm() {
+        const url = document.getElementById("source").value.trim();
+        const file = document.getElementById("file").files.length;
+        const start = document.getElementById("start").value;
+        const end = document.getElementById("end").value;
+    
+        if ((url && file) || (!url && !file)) {
+            alert("Please provide *either* an image URL *or* upload a file — not both.");
+            return false;
+        }   
+    
         if (start && end && new Date(start) >= new Date(end)) {
             alert("End date/time must be later than start date/time.");
             return false;
         }
+    
         return true;
     }
-    </script>
+    </script>    
 </body>
 </html>

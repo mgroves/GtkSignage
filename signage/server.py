@@ -14,6 +14,9 @@ app.secret_key = os.getenv("FLASK_SECRET_KEY")
 admin_user = os.getenv("ADMIN_USERNAME")
 admin_pass = os.getenv("ADMIN_PASSWORD")
 
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "..", "uploads")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
 @app.template_filter('format_ampm')
 def format_ampm(value):
     if not value:
@@ -72,13 +75,29 @@ def admin():
 @login_required
 def admin_add():
     if request.method == "POST":
+        uploaded_file = request.files.get("file")
+        url_input = request.form.get("source", "").strip()
+        filename = None
+
+        # Decide which source to use
+        if uploaded_file and uploaded_file.filename:
+            filename = uploaded_file.filename
+            save_path = os.path.join(UPLOAD_FOLDER, filename)
+            uploaded_file.save(save_path)
+            source = f"file://{os.path.abspath(save_path)}"
+        elif url_input:
+            source = url_input
+        else:
+            return "Either a file or URL is required.", 400
+
         SlideStore.add_slide({
-            "source": request.form["source"],
+            "source": source,
             "duration": int(request.form["duration"]),
             "start": request.form["start"],
             "end": request.form["end"]
         })
         return redirect(url_for("admin"))
+
     return render_template("add.html")
 
 @app.route("/admin/edit/<int:index>", methods=["GET", "POST"])

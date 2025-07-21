@@ -43,3 +43,6 @@ cert.pem
 
 # environment variables
 .env
+
+# uploaded images
+/uploads
