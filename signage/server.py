@@ -2,6 +2,8 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, session
 from signage.slidestore import SlideStore
 from dotenv import load_dotenv
+from signage.models import Slide
+from datetime import datetime
 
 def run_flask():
     print("Flask server starting...")
@@ -62,16 +64,34 @@ def run_flask():
             return redirect(url_for("admin"))
         return render_template("add.html")
 
-    # stubs for edit/delete (add @login_required when implemented)
-    @app.route("/admin/edit/<int:index>")
+    @app.route("/admin/edit/<int:index>", methods=["GET", "POST"])
     @login_required
-    def admin_edit(index):
-        return f"Edit slide {index}"
+    def edit_slide(index):
+        SlideStore.force_reload()
+        slides = SlideStore._slides  # full list
+        if index < 0 or index >= len(slides):
+            return "Slide not found", 404
 
-    @app.route("/admin/delete/<int:index>")
-    @login_required
-    def admin_delete(index):
-        return f"Delete slide {index}"
+        if request.method == "POST":
+            source = request.form["source"]
+            duration = int(request.form["duration"])
+            start_str = request.form.get("start")
+            end_str = request.form.get("end")
+
+            # Safely convert strings to datetime
+            start = datetime.fromisoformat(start_str) if start_str else None
+            end = datetime.fromisoformat(end_str) if end_str else None
+
+            slides[index] = Slide(
+                source=source,
+                duration=duration,
+                start=start,
+                end=end
+            )
+            SlideStore.save_slides(slides)
+            return redirect(url_for("admin"))
+
+        return render_template("edit.html", slide=slides[index], index=index)
 
     cert_path = os.path.join(os.path.dirname(__file__), "..", "cert.pem")
     key_path = os.path.join(os.path.dirname(__file__), "..", "key.pem")

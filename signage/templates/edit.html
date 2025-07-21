@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit Slide</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 2rem; }
+        label { display: block; margin: 10px 0 5px; }
+        input { width: 100%; padding: 8px; margin-bottom: 10px; }
+        button { padding: 10px 20px; }
+    </style>
+</head>
+<body>
+    <h1>Edit Slide</h1>
+    <form action="/admin/edit/{{ index }}" method="post">
+        <label for="source">Source</label>
+        <input type="text" id="source" name="source" value="{{ slide.source }}" required>
+
+        <label for="duration">Duration (seconds)</label>
+        <input type="number" id="duration" name="duration" value="{{ slide.duration }}" required>
+
+        <label for="start">Start (optional, ISO format)</label>
+        <input type="text" id="start" name="start" value="{{ slide.start or '' }}">
+
+        <label for="end">End (optional, ISO format)</label>
+        <input type="text" id="end" name="end" value="{{ slide.end or '' }}">
+
+        <button type="submit">Save</button>
+    </form>
+</body>
+</html>
