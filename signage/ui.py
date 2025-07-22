@@ -11,10 +11,12 @@ load_dotenv()
 # Read host/port from .env
 HOST = os.getenv("FLASK_HOST", "127.0.0.1")
 PORT = os.getenv("FLASK_PORT", "5000")
+USE_SSL = os.getenv("USE_SSL", "false").lower() == "true"
 
 # Normalize localhost for display
 DISPLAY_HOST = "localhost" if HOST in ["0.0.0.0", "127.0.0.1"] else HOST
-ADMIN_URL = f"http://{DISPLAY_HOST}:{PORT}/admin"
+SCHEME = "https" if USE_SSL else "http"
+ADMIN_URL = f"{SCHEME}://{DISPLAY_HOST}:{PORT}/admin"
 
 class SignageWindow(Gtk.Window):
     def __init__(self):
