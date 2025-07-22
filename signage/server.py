@@ -8,6 +8,10 @@ from functools import wraps
 
 load_dotenv()
 
+HOST = os.getenv("FLASK_HOST", "127.0.0.1")
+PORT = int(os.getenv("FLASK_PORT", 5000))
+USE_SSL = os.getenv("USE_SSL", "false").lower() == "true"
+
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
@@ -178,8 +182,13 @@ def delete_slide(index):
 def run_flask():
     print("Flask server starting...")
 
-    cert_path = os.path.join(os.path.dirname(__file__), "..", "cert.pem")
-    key_path = os.path.join(os.path.dirname(__file__), "..", "key.pem")
-    ssl_context = (cert_path, key_path) if os.path.exists(cert_path) and os.path.exists(key_path) else None
+    ssl_context = None
+    if USE_SSL:
+        cert_path = os.path.join(os.path.dirname(__file__), "..", "cert.pem")
+        key_path = os.path.join(os.path.dirname(__file__), "..", "key.pem")
+        if os.path.exists(cert_path) and os.path.exists(key_path):
+            ssl_context = (cert_path, key_path)
+        else:
+            print("⚠️ SSL requested but cert.pem or key.pem not found — continuing without SSL.")
 
-    app.run(host="0.0.0.0", port=6969, ssl_context=ssl_context)
+    app.run(host=HOST, port=PORT, ssl_context=ssl_context)
