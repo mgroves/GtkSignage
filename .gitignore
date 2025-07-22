@@ -46,3 +46,6 @@ cert.pem
 
 # uploaded images
 /uploads
+
+# locks
+slides.json.lock

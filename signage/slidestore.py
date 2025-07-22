@@ -1,96 +1,78 @@
+# slidestore.py
 import json
 import os
 from datetime import datetime
 from .models import Slide
+from .jsonfile import JSONFileHandler
 
 class SlideStore:
-    # Path to the JSON file that defines the slides
     SLIDE_FILE = "slides.json"
-
-    # In-memory list of loaded Slide objects
     _slides = []
-
-    # Last modification time of the JSON file (used to detect changes)
     _last_modified_time = 0
+    _file_handler = JSONFileHandler(SLIDE_FILE)
 
     @classmethod
     def _load_slides(cls):
-        # Internal method that loads the slides from the JSON file.
-        # Only called when the file has changed or when forced.
         try:
-            with open(cls.SLIDE_FILE, "r") as file:
-                raw_data = json.load(file)
+            raw_data = cls._file_handler.load()
             cls._slides = []
-
             for item in raw_data:
                 try:
-                    # Convert start/end strings to datetime if present
                     start_time = datetime.fromisoformat(item["start"]) if item.get("start") else None
                     end_time = datetime.fromisoformat(item["end"]) if item.get("end") else None
-
                     slide = Slide(
                         source=item["source"],
                         duration=item["duration"],
                         start=start_time,
                         end=end_time,
-                        hide = item.get("hide", False)
+                        hide=item.get("hide", False)
                     )
                     cls._slides.append(slide)
-                except Exception as error:
-                    print(f"Failed to load slide: {item} ({error})")
-
-        except Exception as error:
-            print(f"Error reading slide file: {error}")
+                except Exception:
+                    pass
+        except Exception:
             cls._slides = []
 
     @classmethod
     def get_active_slides(cls):
-        # Returns a list of currently active slides.
-        # Automatically reloads the slide file if it has been modified.
         try:
             current_mtime = os.path.getmtime(cls.SLIDE_FILE)
-
             if current_mtime != cls._last_modified_time:
                 cls._last_modified_time = current_mtime
                 cls._load_slides()
-
         except FileNotFoundError:
             cls._slides = []
-
-        # Only return slides where the current time is between start and end
         return [slide for slide in cls._slides if slide.is_active()]
 
     @classmethod
     def force_reload(cls):
-        # Forces the next call to get_active_slides() to reload the slide file,
-        # even if the file hasn't been modified.
         cls._last_modified_time = 0
 
     @classmethod
     def add_slide(cls, slide_data):
-        # Load current slide list from file
+        required_fields = ["source", "duration"]
+        for key in required_fields:
+            if key not in slide_data:
+                raise ValueError(f"Missing required field: {key}")
+
         try:
-            with open(cls.SLIDE_FILE, "r") as file:
-                current_data = json.load(file)
-        except (FileNotFoundError, json.JSONDecodeError):
+            current_data = cls._file_handler.load()
+        except Exception:
             current_data = []
 
-        # Append the new slide
         current_data.append({
             "source": slide_data["source"],
             "duration": slide_data["duration"],
-            "start": slide_data["start"],
-            "end": slide_data["end"],
-            "hide": slide_data.get("hide", False)            
+            "start": slide_data.get("start"),
+            "end": slide_data.get("end"),
+            "hide": slide_data.get("hide", False)
         })
 
-        # Save back to file
         try:
-            with open(cls.SLIDE_FILE, "w") as file:
-                json.dump(current_data, file, indent=4)
+            cls._file_handler.save(current_data)
             cls.force_reload()
-        except Exception as e:
-            print(f"Failed to save slide: {e}")
+        except Exception:
+            pass
 
     @classmethod
     def save_slides(cls, slides):
@@ -103,12 +85,10 @@ class SlideStore:
                 "end": s.end.isoformat() if s.end else None,
                 "hide": s.hide
             })
-        with open(cls.SLIDE_FILE, "w") as f:
-            json.dump(data, f, indent=2)
+        cls._file_handler.save(data)
         cls.force_reload()
 
     @classmethod
     def get_all_slides(cls):
         cls._load_slides()
         return cls._slides
-
