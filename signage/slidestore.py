@@ -5,7 +5,6 @@ This module provides functionality for managing slides in the GTK Signage applic
 It handles loading, saving, and filtering slides based on their active status.
 The slides are stored in a JSON file and accessed through the SlideStore class.
 """
-import json
 import os
 from datetime import datetime
 from .models import Slide

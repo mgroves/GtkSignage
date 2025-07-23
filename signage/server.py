@@ -7,7 +7,8 @@ slide creation, editing, and deletion. The server runs in a background thread
 alongside the GTK display window.
 """
 import os
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, send_file, abort
+import urllib.parse
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, abort
 from signage.slidestore import SlideStore
 from dotenv import load_dotenv
 from signage.models import Slide

@@ -10,7 +10,6 @@ import gi
 import sys
 import os
 from gi.repository import Gtk, WebKit2, GLib
-from signage.models import Slide
 from signage.slidestore import SlideStore
 from dotenv import load_dotenv
 

@@ -5,7 +5,6 @@ This module defines the data models used in the GTK Signage application.
 It contains the Slide class which represents a single slide in the signage system.
 """
 from datetime import datetime
-import os
 
 class Slide:
     """
