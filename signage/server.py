@@ -14,6 +14,7 @@ import logging
 
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, send_file, abort
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from signage.models import Slide
 from signage.slidestore import SlideStore
@@ -171,9 +172,11 @@ def login():
             error = "Username is required"
         elif not password:
             error = "Password is required"
-        elif username == admin_user and password == admin_pass:
+        # Verify with password hash
+        elif username == admin_user and check_password_hash(admin_pass, password):
             session["logged_in"] = True
             logging.info(f"Successful login for user: {username}")
+            
             return redirect(request.args.get("next") or url_for("admin"))
         else:
             logging.warning(f"Failed login attempt for user: {username}")

@@ -27,6 +27,9 @@ cd "$INSTALL_DIR"
 read -p "Enter admin username: " ADMIN_USERNAME
 read -p "Enter admin password: " ADMIN_PASSWORD
 
+# Hash the password using Werkzeug's generate_password_hash
+HASHED_PASSWORD=$(python3 -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('$ADMIN_PASSWORD'))")
+
 # Prompt for Flask host/port and SSL
 read -p "Enter Flask host [0.0.0.0]: " FLASK_HOST
 FLASK_HOST=${FLASK_HOST:-0.0.0.0}
@@ -59,7 +62,7 @@ FLASK_SECRET=$(openssl rand -hex 32)
 echo "Creating .env file..."
 cat <<EOF | sudo tee .env > /dev/null
 ADMIN_USERNAME=$ADMIN_USERNAME
-ADMIN_PASSWORD=$ADMIN_PASSWORD
+ADMIN_PASSWORD=$HASHED_PASSWORD
 FLASK_SECRET_KEY=$FLASK_SECRET
 FLASK_HOST=$FLASK_HOST
 FLASK_PORT=$FLASK_PORT
