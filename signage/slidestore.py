@@ -123,7 +123,8 @@ class SlideStore:
                 May optionally include 'start', 'end', and 'hide' keys.
                 
         Raises:
-            ValueError: If any required fields are missing.
+            ValueError: If any required fields are missing or invalid.
+            TypeError: If any fields have incorrect types.
             
         Note:
             This method loads the current slides from the file,
@@ -138,6 +139,62 @@ class SlideStore:
             if key not in slide_data:
                 logger.error(f"Cannot add slide: Missing required field: {key}")
                 raise ValueError(f"Missing required field: {key}")
+        
+        # Validate source
+        source = slide_data["source"]
+        if not isinstance(source, str):
+            logger.error("Source must be a string")
+            raise TypeError("Source must be a string")
+        if not source.strip():
+            logger.error("Source cannot be empty")
+            raise ValueError("Source cannot be empty")
+        
+        # Validate duration
+        try:
+            duration = int(slide_data["duration"])
+            if duration <= 0:
+                logger.error("Duration must be positive")
+                raise ValueError("Duration must be positive")
+        except (ValueError, TypeError):
+            logger.error("Duration must be an integer")
+            raise TypeError("Duration must be an integer")
+        
+        # Validate start and end times
+        start = slide_data.get("start")
+        end = slide_data.get("end")
+        
+        if start:
+            try:
+                if isinstance(start, str):
+                    start = datetime.fromisoformat(start)
+            except ValueError:
+                logger.error("Invalid start time format")
+                raise ValueError("Invalid start time format")
+        
+        if end:
+            try:
+                if isinstance(end, str):
+                    end = datetime.fromisoformat(end)
+            except ValueError:
+                logger.error("Invalid end time format")
+                raise ValueError("Invalid end time format")
+        
+        if start and end and start >= end:
+            logger.error("Start time must be before end time")
+            raise ValueError("Start time must be before end time")
+        
+        # Validate hide flag
+        hide = slide_data.get("hide", False)
+        if not isinstance(hide, bool):
+            try:
+                # Convert to boolean if it's a string like "true" or "false"
+                if isinstance(hide, str):
+                    hide = hide.lower() in ("true", "yes", "1", "t", "y")
+                else:
+                    hide = bool(hide)
+            except:
+                logger.error("Hide flag must be a boolean")
+                raise TypeError("Hide flag must be a boolean")
 
         try:
             logger.debug("Loading current slides data")
@@ -150,11 +207,11 @@ class SlideStore:
 
         # Prepare the new slide data
         new_slide = {
-            "source": slide_data["source"],
-            "duration": slide_data["duration"],
-            "start": slide_data.get("start"),
-            "end": slide_data.get("end"),
-            "hide": slide_data.get("hide", False)
+            "source": source,
+            "duration": duration,
+            "start": start.isoformat() if start else None,
+            "end": end.isoformat() if end else None,
+            "hide": hide
         }
         
         logger.debug(f"Prepared new slide data: {new_slide}")

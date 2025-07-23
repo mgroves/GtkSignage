@@ -12,13 +12,14 @@
 
     <form action="/admin/add" method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
         <label for="source">Image URL (optional)</label>
-        <input type="text" id="source" name="source">
+        <input type="text" id="source" name="source" placeholder="https:// or http://">
     
         <label for="file">Upload Image (optional)</label>
         <input type="file" id="file" name="file" accept="image/*">
+        <small>Allowed formats: PNG, JPG, JPEG, GIF, BMP, SVG, WEBP. Max size: 10MB</small>
     
         <label for="duration">Duration (seconds)</label>
-        <input type="number" id="duration" name="duration" required min="1">
+        <input type="number" id="duration" name="duration" required min="1" max="3600">
     
         <label for="start">Start Date & Time (optional)</label>
         <input type="datetime-local" id="start" name="start">
@@ -37,15 +38,57 @@
     <script>
     function validateForm() {
         const url = document.getElementById("source").value.trim();
-        const file = document.getElementById("file").files.length;
+        const fileInput = document.getElementById("file");
+        const file = fileInput.files.length;
+        const duration = document.getElementById("duration").value;
         const start = document.getElementById("start").value;
         const end = document.getElementById("end").value;
     
+        // Validate source (either URL or file)
         if ((url && file) || (!url && !file)) {
             alert("Please provide *either* an image URL *or* upload a file — not both.");
             return false;
-        }   
+        }
+        
+        // Validate URL format
+        if (url) {
+            if (!(url.startsWith('http://') || url.startsWith('https://'))) {
+                alert("URL must start with http:// or https://");
+                return false;
+            }
+        }
+        
+        // Validate file size
+        if (file) {
+            const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+            if (fileInput.files[0].size > maxSize) {
+                alert("File is too large. Maximum size is 10MB.");
+                return false;
+            }
+            
+            // Validate file type
+            const fileName = fileInput.files[0].name;
+            const fileExt = fileName.split('.').pop().toLowerCase();
+            const allowedExtensions = ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'];
+            
+            if (!allowedExtensions.includes(fileExt)) {
+                alert("File type not allowed. Allowed types: " + allowedExtensions.join(', '));
+                return false;
+            }
+        }
+        
+        // Validate duration
+        if (!duration || isNaN(duration) || parseInt(duration) <= 0) {
+            alert("Duration must be a positive number.");
+            return false;
+        }
+        
+        if (parseInt(duration) > 3600) {
+            alert("Duration cannot exceed 3600 seconds (1 hour).");
+            return false;
+        }
     
+        // Validate start and end times
         if (start && end && new Date(start) >= new Date(end)) {
             alert("End date/time must be later than start date/time.");
             return false;

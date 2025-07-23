@@ -27,7 +27,38 @@ class Slide:
             start (datetime, optional): Start time when the slide becomes active. Defaults to None.
             end (datetime, optional): End time when the slide becomes inactive. Defaults to None.
             hide (bool, optional): Flag to hide the slide regardless of timing. Defaults to False.
+            
+        Raises:
+            ValueError: If any of the parameters are invalid.
+            TypeError: If any of the parameters have incorrect types.
         """
+        # Validate source
+        if not isinstance(source, str):
+            raise TypeError("Source must be a string")
+        if not source.strip():
+            raise ValueError("Source cannot be empty")
+        
+        # Validate duration
+        if not isinstance(duration, int):
+            try:
+                duration = int(duration)
+            except (ValueError, TypeError):
+                raise TypeError("Duration must be an integer")
+        if duration <= 0:
+            raise ValueError("Duration must be positive")
+            
+        # Validate start and end times
+        if start is not None and not isinstance(start, datetime):
+            raise TypeError("Start time must be a datetime object")
+        if end is not None and not isinstance(end, datetime):
+            raise TypeError("End time must be a datetime object")
+        if start and end and start >= end:
+            raise ValueError("Start time must be before end time")
+            
+        # Validate hide flag
+        if not isinstance(hide, bool):
+            raise TypeError("Hide flag must be a boolean")
+            
         self.source = source
         self.duration = duration
         self.start = start if start else None

@@ -96,7 +96,7 @@ def login_required(f):
         return f(*args, **kwargs)
     return decorated
 
-# Image serving route
+# Image serving routes
 @app.route("/internal-image/<path:encoded_path>")
 @login_required
 def serve_internal_image(encoded_path):
@@ -126,6 +126,28 @@ def serve_internal_image(encoded_path):
 
     return send_file(full_path, mimetype="image/*")
 
+@app.route("/uploads/<filename>")
+def serve_upload(filename):
+    """
+    Serve uploaded files publicly.
+    
+    This route serves files from the uploads directory without requiring authentication.
+    It is used for slides that need to be publicly accessible.
+    
+    Args:
+        filename (str): The filename of the uploaded file.
+        
+    Returns:
+        Response: The file response or a 404 error if the file doesn't exist.
+    """
+    file_path = os.path.join(UPLOAD_FOLDER, filename)
+    
+    if not os.path.isfile(file_path):
+        logging.debug(f"Uploaded file not found: {file_path}")
+        return abort(404)
+    
+    return send_file(file_path)
+
 
 # Authentication routes
 @app.route("/login", methods=["GET", "POST"])
@@ -141,11 +163,22 @@ def login():
     """
     error = None
     if request.method == "POST":
-        if request.form["username"] == admin_user and request.form["password"] == admin_pass:
+        # Validate form inputs
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        
+        if not username:
+            error = "Username is required"
+        elif not password:
+            error = "Password is required"
+        elif username == admin_user and password == admin_pass:
             session["logged_in"] = True
+            logging.info(f"Successful login for user: {username}")
             return redirect(request.args.get("next") or url_for("admin"))
         else:
+            logging.warning(f"Failed login attempt for user: {username}")
             error = "Invalid credentials"
+    
     return render_template("login.html", error=error)
 
 @app.route("/logout")
@@ -202,30 +235,83 @@ def admin_add():
         Response: Redirect to admin page on successful addition or error message.
     """
     if request.method == "POST":
+        # Get form inputs
         uploaded_file = request.files.get("file")
         url_input = request.form.get("source", "").strip()
+        duration_input = request.form.get("duration", "").strip()
+        start_input = request.form.get("start", "").strip()
+        end_input = request.form.get("end", "").strip()
         hide = bool(request.form.get("hide"))
-        filename = None
-
-        # Decide which source to use
-        if uploaded_file and uploaded_file.filename:
-            filename = uploaded_file.filename
-            save_path = os.path.join(UPLOAD_FOLDER, filename)
-            uploaded_file.save(save_path)
-            source = f"file://{os.path.abspath(save_path)}"
-        elif url_input:
+        
+        # Validate source (either file or URL)
+        if uploaded_file and uploaded_file.filename and url_input:
+            return "Please provide either a file or URL, not both.", 400
+        
+        if not uploaded_file or not uploaded_file.filename:
+            if not url_input:
+                return "Either a file or URL is required.", 400
+            
+            # Validate URL format
+            if not (url_input.startswith('http://') or url_input.startswith('https://')):
+                return "URL must start with http:// or https://", 400
+            
             source = url_input
         else:
-            return "Either a file or URL is required.", 400
-
-        SlideStore.add_slide({
+            # Validate file upload
+            filename = uploaded_file.filename
+            
+            # Check file extension
+            allowed_extensions = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'svg', 'webp'}
+            file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
+            
+            if file_ext not in allowed_extensions:
+                return f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}", 400
+            
+            # Check file size (limit to 10MB)
+            max_size = 10 * 1024 * 1024  # 10MB in bytes
+            uploaded_file.seek(0, os.SEEK_END)
+            file_size = uploaded_file.tell()
+            uploaded_file.seek(0)  # Reset file pointer
+            
+            if file_size > max_size:
+                return f"File too large. Maximum size is 10MB.", 400
+            
+            # Save file
+            save_path = os.path.join(UPLOAD_FOLDER, filename)
+            uploaded_file.save(save_path)
+            
+            # Create a URL for the uploaded file using the serve_upload route
+            # Use request.host_url to get the base URL (including scheme, host, and port)
+            source = f"{request.host_url.rstrip('/')}{ url_for('serve_upload', filename=filename) }"
+        
+        # Validate duration
+        try:
+            duration = int(duration_input)
+            if duration <= 0:
+                return "Duration must be a positive number.", 400
+        except ValueError:
+            return "Duration must be a valid number.", 400
+        
+        # Validate start and end times
+        start = start_input if start_input else None
+        end = end_input if end_input else None
+        
+        # Create slide data
+        slide_data = {
             "source": source,
-            "duration": int(request.form["duration"]),
-            "start": request.form["start"],
-            "end": request.form["end"],
+            "duration": duration,
+            "start": start,
+            "end": end,
             "hide": hide
-        })
-        return redirect(url_for("admin"))
+        }
+        
+        try:
+            SlideStore.add_slide(slide_data)
+            logging.info(f"Added new slide with source: {source}")
+            return redirect(url_for("admin"))
+        except (ValueError, TypeError) as e:
+            logging.error(f"Error adding slide: {e}")
+            return str(e), 400
 
     return render_template("add.html")
 
@@ -252,28 +338,99 @@ def edit_slide(index):
 
     if request.method == "POST":
         try:
-            source = request.form["source"]
-            duration = int(request.form["duration"])
-            start_str = request.form.get("start")
-            end_str = request.form.get("end")
+            # Get form inputs
+            source = request.form.get("source", "").strip()
+            duration_input = request.form.get("duration", "").strip()
+            start_str = request.form.get("start", "").strip()
+            end_str = request.form.get("end", "").strip()
             hide = "hide" in request.form
-
-            start = datetime.fromisoformat(start_str) if start_str else None
-            end = datetime.fromisoformat(end_str) if end_str else None
-
-            slides[index] = Slide(
-                source=source,
-                duration=duration,
-                start=start,
-                end=end,
-                hide=hide
-            )
-
-            SlideStore.save_slides(slides)
-            return redirect(url_for("admin"))
+            
+            # Handle file:// URLs (convert to HTTP/HTTPS URLs)
+            if source.startswith('file://'):
+                file_path = source[7:]
+                if os.path.isfile(file_path):
+                    # Extract the filename from the path
+                    filename = os.path.basename(file_path)
+                    
+                    # Check if the file is in the UPLOAD_FOLDER
+                    if os.path.dirname(os.path.abspath(file_path)) == os.path.abspath(UPLOAD_FOLDER):
+                        # Create a URL for the file using the serve_upload route
+                        source = f"{request.host_url.rstrip('/')}{ url_for('serve_upload', filename=filename) }"
+                        logging.info(f"Converted file:// URL to HTTP/HTTPS URL: {source}")
+                    else:
+                        # File is not in the UPLOAD_FOLDER, copy it there
+                        import shutil
+                        try:
+                            shutil.copy2(file_path, os.path.join(UPLOAD_FOLDER, filename))
+                            source = f"{request.host_url.rstrip('/')}{ url_for('serve_upload', filename=filename) }"
+                            logging.info(f"Copied file to UPLOAD_FOLDER and converted to HTTP/HTTPS URL: {source}")
+                        except Exception as e:
+                            logging.error(f"Error copying file to UPLOAD_FOLDER: {e}")
+                            return f"Error processing file: {e}", 400
+                else:
+                    return f"File not found: {file_path}", 400
+            
+            # Validate source
+            if not source:
+                return "Source is required.", 400
+                
+            # Validate URL format
+            if source.startswith('http://') or source.startswith('https://'):
+                # Additional URL validation could be added here if needed
+                pass
+            else:
+                return "Source must start with http:// or https://", 400
+            
+            # Validate duration
+            try:
+                duration = int(duration_input)
+                if duration <= 0:
+                    return "Duration must be a positive number.", 400
+            except ValueError:
+                return "Duration must be a valid number.", 400
+            
+            # Validate start and end times
+            start = None
+            end = None
+            
+            if start_str:
+                try:
+                    start = datetime.fromisoformat(start_str)
+                except ValueError:
+                    return "Invalid start time format.", 400
+                    
+            if end_str:
+                try:
+                    end = datetime.fromisoformat(end_str)
+                except ValueError:
+                    return "Invalid end time format.", 400
+            
+            # Validate start is before end
+            if start and end and start >= end:
+                return "End time must be after start time.", 400
+            
+            # Create updated slide
+            try:
+                updated_slide = Slide(
+                    source=source,
+                    duration=duration,
+                    start=start,
+                    end=end,
+                    hide=hide
+                )
+                
+                slides[index] = updated_slide
+                SlideStore.save_slides(slides)
+                logging.info(f"Updated slide at index {index}")
+                return redirect(url_for("admin"))
+                
+            except (ValueError, TypeError) as e:
+                logging.error(f"Error creating slide object: {e}")
+                return f"Error updating slide: {e}", 400
 
         except Exception as e:
-            return f"Error updating slide: {e}", 400
+            logging.error(f"Unexpected error updating slide: {e}")
+            return f"Error updating slide: {e}", 500
 
     return render_template("edit.html", slide=slides[index], index=index)
 

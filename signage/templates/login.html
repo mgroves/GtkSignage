@@ -10,14 +10,33 @@
     {% if error %}
         <p style="color:red">{{ error }}</p>
     {% endif %}
-    <form method="post">
+    <form method="post" onsubmit="return validateForm()">
         <label for="username">Username</label>
-        <input id="username" name="username" type="text">
+        <input id="username" name="username" type="text" required>
 
         <label for="password">Password</label>
-        <input id="password" name="password" type="password">
+        <input id="password" name="password" type="password" required>
 
         <button type="submit">Login</button>
     </form>
+
+    <script>
+    function validateForm() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        
+        if (!username) {
+            alert('Username is required');
+            return false;
+        }
+        
+        if (!password) {
+            alert('Password is required');
+            return false;
+        }
+        
+        return true;
+    }
+    </script>
 </body>
 </html>

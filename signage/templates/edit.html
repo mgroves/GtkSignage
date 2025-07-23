@@ -10,25 +10,36 @@
 
     <p><a href="{{ url_for('admin') }}" class="btn">← Back to Admin</a></p>
 
-    <form action="/admin/edit/{{ index }}" method="post" onsubmit="return validateTimes()">
+    <form action="/admin/edit/{{ index }}" method="post" onsubmit="return validateForm()">
         <input type="hidden" name="source" value="{{ slide.source }}">
 
         <label>Source</label>
         
         {% if slide.source.startswith("file://") %}
-            {% set filepath = slide.source[7:] %}
-            {% set encoded = filepath | urlencode %}
+            <div class="alert alert-warning">
+                <p><strong>Note:</strong> This slide uses a file:// URL which is no longer supported. 
+                It will be automatically converted to an HTTP/HTTPS URL when you save.</p>
+                {% set filepath = slide.source[7:] %}
+                {% set encoded = filepath | urlencode %}
                 <img src="{{ url_for('serve_internal_image', encoded_path=encoded) }}"
                     id="preview-image"
                     alt="Slide Image"
                     style="max-width: 200px; height: auto; cursor: pointer; transition: all 0.2s ease-in-out;"
                     onclick="toggleImageSize(this)">
+            </div>
         {% else %}
             <p><a href="{{ slide.source }}" target="_blank">{{ slide.source }}</a></p>
+            {% if slide.source.endswith('.jpg') or slide.source.endswith('.jpeg') or slide.source.endswith('.png') or slide.source.endswith('.gif') or slide.source.endswith('.svg') or slide.source.endswith('.webp') %}
+                <img src="{{ slide.source }}"
+                    id="preview-image"
+                    alt="Slide Image"
+                    style="max-width: 200px; height: auto; cursor: pointer; transition: all 0.2s ease-in-out;"
+                    onclick="toggleImageSize(this)">
+            {% endif %}
         {% endif %}
         
         <label for="duration">Duration (seconds)</label>
-        <input type="number" id="duration" name="duration" value="{{ slide.duration }}" required min="1">
+        <input type="number" id="duration" name="duration" value="{{ slide.duration }}" required min="1" max="3600">
     
         <label for="start">Start Date & Time (optional)</label>
         <input type="datetime-local" id="start" name="start" value="{{ slide.start or '' }}">
@@ -45,13 +56,33 @@
     </form>
     
     <script>
-    function validateTimes() {
+    function validateForm() {
+        const duration = document.getElementById('duration').value;
         const start = document.getElementById('start').value;
         const end = document.getElementById('end').value;
-        if (start && end && new Date(start) >= new Date(end)) {
-            alert("End date/time must be later than start date/time.");
+        
+        // Validate duration
+        if (!duration || isNaN(duration) || parseInt(duration) <= 0) {
+            alert("Duration must be a positive number.");
             return false;
         }
+        
+        if (parseInt(duration) > 3600) {
+            alert("Duration cannot exceed 3600 seconds (1 hour).");
+            return false;
+        }
+        
+        // Validate start and end times
+        if (start && end) {
+            const startDate = new Date(start);
+            const endDate = new Date(end);
+            
+            if (startDate >= endDate) {
+                alert("End date/time must be later than start date/time.");
+                return false;
+            }
+        }
+        
         return true;
     }
     </script>    
