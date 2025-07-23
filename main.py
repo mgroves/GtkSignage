@@ -20,7 +20,6 @@ from gi.repository import Gtk
 
 if __name__ == "__main__":
     try:
-        print("Flask server starting...")
         # Run Flask in a background daemon thread
         flask_thread = threading.Thread(target=run_flask, daemon=True)
         flask_thread.start()
