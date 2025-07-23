@@ -1,23 +1,21 @@
 from datetime import datetime
 import os
-from typing import Optional, Union
 
 from datetime import datetime
 
 class Slide:
-    def __init__(self, source: str, duration: int, start: Optional[datetime] = None, 
-                 end: Optional[datetime] = None, hide: bool = False) -> None:
-        self.source: str = source
-        self.duration: int = duration
-        self.start: Optional[datetime] = start if start else None
-        self.end: Optional[datetime] = end if end else None
-        self.hide: bool = hide
+    def __init__(self, source, duration, start=None, end=None, hide=False):
+        self.source = source
+        self.duration = duration
+        self.start = start if start else None
+        self.end = end if end else None
+        self.hide = hide
 
-    def is_active(self) -> bool:
+    def is_active(self):
         if self.hide:
             return False
 
-        now: datetime = datetime.now()
+        now = datetime.now()
 
         if not self.start and not self.end:
             return True

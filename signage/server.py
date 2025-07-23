@@ -1,6 +1,5 @@
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union, cast
-from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, send_file, abort, Response
+from flask import Flask, render_template, request, redirect, url_for, session, send_from_directory, send_file, abort
 from signage.slidestore import SlideStore
 from dotenv import load_dotenv
 from signage.models import Slide
@@ -9,27 +8,27 @@ from functools import wraps
 
 load_dotenv()
 
-HOST: str = os.getenv("FLASK_HOST", "127.0.0.1")
-PORT: int = int(os.getenv("FLASK_PORT", 5000))
-USE_SSL: bool = os.getenv("USE_SSL", "false").lower() == "true"
+HOST = os.getenv("FLASK_HOST", "127.0.0.1")
+PORT = int(os.getenv("FLASK_PORT", 5000))
+USE_SSL = os.getenv("USE_SSL", "false").lower() == "true"
 
-app: Flask = Flask(__name__)
+app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 
-admin_user: Optional[str] = os.getenv("ADMIN_USERNAME")
-admin_pass: Optional[str] = os.getenv("ADMIN_PASSWORD")
+admin_user = os.getenv("ADMIN_USERNAME")
+admin_pass = os.getenv("ADMIN_PASSWORD")
 
-UPLOAD_FOLDER: str = os.path.join(os.path.dirname(__file__), "..", "uploads")
+UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "..", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 #format date/time
 @app.template_filter('format_ampm')
-def format_ampm(value: Union[str, datetime, None]) -> str:
+def format_ampm(value):
     if not value or str(value).strip() == "":
         return "N/A"
     try:
         if isinstance(value, str):
-            dt: datetime = datetime.fromisoformat(value.strip())
+            dt = datetime.fromisoformat(value.strip())
         elif isinstance(value, datetime):
             dt = value
         else:
@@ -45,26 +44,24 @@ def format_ampm(value: Union[str, datetime, None]) -> str:
 
 
 # Auth helpers
-def is_logged_in() -> bool:
+def is_logged_in():
     return session.get("logged_in", False)
 
-F = TypeVar('F', bound=Callable[..., Any])
-
-def login_required(f: F) -> F:
+def login_required(f):
     @wraps(f)
-    def decorated(*args: Any, **kwargs: Any) -> Any:
+    def decorated(*args, **kwargs):
         if not is_logged_in():
             return redirect(url_for("login", next=request.path))
         return f(*args, **kwargs)
-    return cast(F, decorated)
+    return decorated
 
 # show uploaded images to admin
 @app.route("/internal-image/<path:encoded_path>")
 @login_required
-def serve_internal_image(encoded_path: str) -> Response:
+def serve_internal_image(encoded_path):
     import urllib.parse
 
-    full_path: str = urllib.parse.unquote(encoded_path)
+    full_path = urllib.parse.unquote(encoded_path)
 
     # Ensure leading slash is restored if missing
     if not full_path.startswith("/"):
@@ -81,8 +78,8 @@ def serve_internal_image(encoded_path: str) -> Response:
 
 # Routes
 @app.route("/login", methods=["GET", "POST"])
-def login() -> Union[str, Response]:
-    error: Optional[str] = None
+def login():
+    error = None
     if request.method == "POST":
         if request.form["username"] == admin_user and request.form["password"] == admin_pass:
             session["logged_in"] = True
@@ -92,34 +89,34 @@ def login() -> Union[str, Response]:
     return render_template("login.html", error=error)
 
 @app.route("/logout")
-def logout() -> Response:
+def logout():
     session.pop("logged_in", None)
     return redirect(url_for("login"))
 
 @app.route("/")
-def index() -> str:
+def index():
     return render_template("index.html")
 
 @app.route("/admin")
 @login_required
-def admin() -> str:
+def admin():
     return render_template("admin.html", slides=SlideStore.get_all_slides())
 
 @app.route("/admin/add", methods=["GET", "POST"])
 @login_required
-def admin_add() -> Union[str, Response, Tuple[str, int]]:
+def admin_add():
     if request.method == "POST":
         uploaded_file = request.files.get("file")
-        url_input: str = request.form.get("source", "").strip()
-        hide: bool = bool(request.form.get("hide"))
-        filename: Optional[str] = None
+        url_input = request.form.get("source", "").strip()
+        hide = bool(request.form.get("hide"))
+        filename = None
 
         # Decide which source to use
         if uploaded_file and uploaded_file.filename:
             filename = uploaded_file.filename
-            save_path: str = os.path.join(UPLOAD_FOLDER, filename)
+            save_path = os.path.join(UPLOAD_FOLDER, filename)
             uploaded_file.save(save_path)
-            source: str = f"file://{os.path.abspath(save_path)}"
+            source = f"file://{os.path.abspath(save_path)}"
         elif url_input:
             source = url_input
         else:
@@ -138,22 +135,22 @@ def admin_add() -> Union[str, Response, Tuple[str, int]]:
 
 @app.route("/admin/edit/<int:index>", methods=["GET", "POST"])
 @login_required
-def edit_slide(index: int) -> Union[str, Response, Tuple[str, int]]:
-    slides: List[Slide] = SlideStore.get_all_slides()  # Use the getter method, not the private _slides
+def edit_slide(index):
+    slides = SlideStore.get_all_slides()  # Use the getter method, not the private _slides
 
     if index < 0 or index >= len(slides):
         return "Slide not found", 404
 
     if request.method == "POST":
         try:
-            source: str = request.form["source"]
-            duration: int = int(request.form["duration"])
-            start_str: Optional[str] = request.form.get("start")
-            end_str: Optional[str] = request.form.get("end")
-            hide: bool = "hide" in request.form
+            source = request.form["source"]
+            duration = int(request.form["duration"])
+            start_str = request.form.get("start")
+            end_str = request.form.get("end")
+            hide = "hide" in request.form
 
-            start: Optional[datetime] = datetime.fromisoformat(start_str) if start_str else None
-            end: Optional[datetime] = datetime.fromisoformat(end_str) if end_str else None
+            start = datetime.fromisoformat(start_str) if start_str else None
+            end = datetime.fromisoformat(end_str) if end_str else None
 
             slides[index] = Slide(
                 source=source,
@@ -173,8 +170,8 @@ def edit_slide(index: int) -> Union[str, Response, Tuple[str, int]]:
 
 @app.route("/admin/delete/<int:index>")
 @login_required
-def delete_slide(index: int) -> Response:
-    slides: List[Slide] = SlideStore.get_all_slides()
+def delete_slide(index):
+    slides = SlideStore.get_all_slides()
     if 0 <= index < len(slides):
         del slides[index]
         SlideStore.save_slides(slides)
@@ -182,13 +179,13 @@ def delete_slide(index: int) -> Response:
     return redirect("/admin")
 
 # Entrypoint
-def run_flask() -> None:
+def run_flask():
     print("Flask server starting...")
 
-    ssl_context: Optional[Tuple[str, str]] = None
+    ssl_context = None
     if USE_SSL:
-        cert_path: str = os.path.join(os.path.dirname(__file__), "..", "cert.pem")
-        key_path: str = os.path.join(os.path.dirname(__file__), "..", "key.pem")
+        cert_path = os.path.join(os.path.dirname(__file__), "..", "cert.pem")
+        key_path = os.path.join(os.path.dirname(__file__), "..", "key.pem")
         if os.path.exists(cert_path) and os.path.exists(key_path):
             ssl_context = (cert_path, key_path)
         else:
