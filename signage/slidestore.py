@@ -2,25 +2,26 @@
 import json
 import os
 from datetime import datetime
+from typing import Any, Dict, List, Optional, Union, ClassVar
 from .models import Slide
 from .jsonfile import JSONFileHandler
 
 class SlideStore:
-    SLIDE_FILE = "slides.json"
-    _slides = []
-    _last_modified_time = 0
-    _file_handler = JSONFileHandler(SLIDE_FILE)
+    SLIDE_FILE: ClassVar[str] = "slides.json"
+    _slides: ClassVar[List[Slide]] = []
+    _last_modified_time: ClassVar[float] = 0
+    _file_handler: ClassVar[JSONFileHandler] = JSONFileHandler(SLIDE_FILE)
 
     @classmethod
-    def _load_slides(cls):
+    def _load_slides(cls) -> None:
         try:
-            raw_data = cls._file_handler.load()
+            raw_data: List[Dict[str, Any]] = cls._file_handler.load()
             cls._slides = []
             for item in raw_data:
                 try:
-                    start_time = datetime.fromisoformat(item["start"]) if item.get("start") else None
-                    end_time = datetime.fromisoformat(item["end"]) if item.get("end") else None
-                    slide = Slide(
+                    start_time: Optional[datetime] = datetime.fromisoformat(item["start"]) if item.get("start") else None
+                    end_time: Optional[datetime] = datetime.fromisoformat(item["end"]) if item.get("end") else None
+                    slide: Slide = Slide(
                         source=item["source"],
                         duration=item["duration"],
                         start=start_time,
@@ -34,9 +35,9 @@ class SlideStore:
             cls._slides = []
 
     @classmethod
-    def get_active_slides(cls):
+    def get_active_slides(cls) -> List[Slide]:
         try:
-            current_mtime = os.path.getmtime(cls.SLIDE_FILE)
+            current_mtime: float = os.path.getmtime(cls.SLIDE_FILE)
             if current_mtime != cls._last_modified_time:
                 cls._last_modified_time = current_mtime
                 cls._load_slides()
@@ -45,18 +46,18 @@ class SlideStore:
         return [slide for slide in cls._slides if slide.is_active()]
 
     @classmethod
-    def force_reload(cls):
+    def force_reload(cls) -> None:
         cls._last_modified_time = 0
 
     @classmethod
-    def add_slide(cls, slide_data):
-        required_fields = ["source", "duration"]
+    def add_slide(cls, slide_data: Dict[str, Any]) -> None:
+        required_fields: List[str] = ["source", "duration"]
         for key in required_fields:
             if key not in slide_data:
                 raise ValueError(f"Missing required field: {key}")
 
         try:
-            current_data = cls._file_handler.load()
+            current_data: List[Dict[str, Any]] = cls._file_handler.load()
         except Exception:
             current_data = []
 
@@ -75,8 +76,8 @@ class SlideStore:
             pass
 
     @classmethod
-    def save_slides(cls, slides):
-        data = []
+    def save_slides(cls, slides: List[Slide]) -> None:
+        data: List[Dict[str, Any]] = []
         for s in slides:
             data.append({
                 "source": s.source,
@@ -89,6 +90,6 @@ class SlideStore:
         cls.force_reload()
 
     @classmethod
-    def get_all_slides(cls):
+    def get_all_slides(cls) -> List[Slide]:
         cls._load_slides()
         return cls._slides
