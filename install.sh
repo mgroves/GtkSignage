@@ -97,6 +97,23 @@ sudo systemctl daemon-reload
 sudo systemctl enable "$SERVICE_NAME"
 sudo systemctl restart "$SERVICE_NAME"
 
+# Set journald log size limit
+echo "Configuring systemd journal log size limit..."
+sudo sed -i '/^#*SystemMaxUse=/d;/^#*SystemKeepFree=/d;/^#*SystemMaxFileSize=/d;/^#*SystemMaxFiles=/d' /etc/systemd/journald.conf
+sudo tee -a /etc/systemd/journald.conf > /dev/null <<EOF
+SystemMaxUse=100M
+SystemKeepFree=50M
+SystemMaxFileSize=10M
+SystemMaxFiles=10
+EOF
+sudo systemctl restart systemd-journald
+
+echo "✅ Log output is handled by systemd-journald."
+echo "  To view logs:"
+echo "    sudo journalctl -u $SERVICE_NAME.service"
+echo "    sudo journalctl -u $SERVICE_NAME.service -f  # (live view)"
+echo "  Logs are stored in: /var/log/journal (persistent) or /run/log/journal (volatile)"
+
 echo "Installation complete. Signage service is running."
 if [[ "$USE_SSL_VALUE" == "true" ]]; then
   echo "🔒 HTTPS is enabled using self-signed certificates."

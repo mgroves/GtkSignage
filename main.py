@@ -20,10 +20,27 @@ from signage.server import run_flask
 from signage.ui import SignageWindow
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+import os
+import sys
+
+# Configure root logger to output to stderr only
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# Log format
+log_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+# Console handler (stderr)
+console_handler = logging.StreamHandler(sys.stderr)
+console_handler.setFormatter(log_format)
+logger.addHandler(console_handler)
+
+# Set log level from environment variable if available
+log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+if log_level in ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]:
+    logger.setLevel(getattr(logging, log_level))
+
+logging.info(f"Logging initialized at {log_level} level")
 
 gi.require_version("Gtk", "3.0")
 

@@ -4,7 +4,11 @@ Models Module
 This module defines the data models used in the GTK Signage application.
 It contains the Slide class which represents a single slide in the signage system.
 """
+import logging
 from datetime import datetime
+
+# Get logger for this module
+logger = logging.getLogger(__name__)
 
 class Slide:
     """
@@ -41,22 +45,51 @@ class Slide:
         Returns:
             bool: True if the slide is active and should be displayed, False otherwise.
         """
+        # Get a short identifier for the slide for logging
+        slide_id = self.source.split('/')[-1] if '/' in self.source else self.source
+        
         if self.hide:
+            logger.debug(f"Slide '{slide_id}' is inactive: manually hidden")
             return False
 
         now = datetime.now()
+        logger.debug(f"Checking if slide '{slide_id}' is active at {now.isoformat()}")
 
+        # No time constraints
         if not self.start and not self.end:
+            logger.debug(f"Slide '{slide_id}' is active: no time constraints")
             return True
 
+        # Only end time constraint
         if not self.start and self.end:
-            return now <= self.end
+            is_active = now <= self.end
+            if is_active:
+                logger.debug(f"Slide '{slide_id}' is active: current time is before end time {self.end.isoformat()}")
+            else:
+                logger.debug(f"Slide '{slide_id}' is inactive: current time is after end time {self.end.isoformat()}")
+            return is_active
 
+        # Only start time constraint
         if self.start and not self.end:
-            return now >= self.start
+            is_active = now >= self.start
+            if is_active:
+                logger.debug(f"Slide '{slide_id}' is active: current time is after start time {self.start.isoformat()}")
+            else:
+                logger.debug(f"Slide '{slide_id}' is inactive: current time is before start time {self.start.isoformat()}")
+            return is_active
 
+        # Both start and end time constraints
         if self.start and self.end:
-            return self.start <= now <= self.end
+            is_active = self.start <= now <= self.end
+            if is_active:
+                logger.debug(f"Slide '{slide_id}' is active: current time is between start {self.start.isoformat()} and end {self.end.isoformat()}")
+            else:
+                if now < self.start:
+                    logger.debug(f"Slide '{slide_id}' is inactive: current time is before start time {self.start.isoformat()}")
+                else:
+                    logger.debug(f"Slide '{slide_id}' is inactive: current time is after end time {self.end.isoformat()}")
+            return is_active
 
+        logger.warning(f"Slide '{slide_id}' reached unexpected condition in is_active()")
         return False
 
