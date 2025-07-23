@@ -6,12 +6,15 @@ It creates a window with a WebKit2 webview that displays slides in a loop.
 The slides are loaded from the SlideStore and displayed according to their
 configured duration.
 """
-import gi
-import sys
 import os
-from gi.repository import Gtk, WebKit2, GLib
-from signage.slidestore import SlideStore
+import sys
+import logging
+
+import gi
 from dotenv import load_dotenv
+from gi.repository import Gtk, WebKit2, GLib
+
+from signage.slidestore import SlideStore
 
 load_dotenv()
 
@@ -69,7 +72,7 @@ class SignageWindow(Gtk.Window):
         active_slides = SlideStore.get_active_slides()
 
         if not active_slides:
-            print("No active slides")
+            logging.info("No active slides")
             self.slide_index = 0
 
             # Show message prompting user to visit the admin console
@@ -106,7 +109,7 @@ class SignageWindow(Gtk.Window):
 
         self.slide_index %= len(active_slides)
         current_slide = active_slides[self.slide_index]
-        print(f"Showing slide: {current_slide.source}")
+        logging.info(f"Showing slide: {current_slide.source}")
         self.webview.load_uri(current_slide.source)
 
         delay = current_slide.duration
@@ -125,6 +128,6 @@ class SignageWindow(Gtk.Window):
         Args:
             *args: Variable length argument list (not used).
         """
-        print("GTK window closed. Shutting down.")
+        logging.info("GTK window closed. Shutting down.")
         Gtk.main_quit()
         sys.exit(0)

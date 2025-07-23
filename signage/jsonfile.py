@@ -5,8 +5,9 @@ This module provides functionality for safely reading from and writing to JSON f
 with file locking to prevent concurrent access issues.
 """
 import json
-from filelock import FileLock
 from pathlib import Path
+
+from filelock import FileLock
 
 class JSONFileHandler:
     """

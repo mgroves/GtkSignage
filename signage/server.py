@@ -8,12 +8,15 @@ alongside the GTK display window.
 """
 import os
 import urllib.parse
-from flask import Flask, render_template, request, redirect, url_for, session, send_file, abort
-from signage.slidestore import SlideStore
-from dotenv import load_dotenv
-from signage.models import Slide
 from datetime import datetime
 from functools import wraps
+import logging
+
+from dotenv import load_dotenv
+from flask import Flask, render_template, request, redirect, url_for, session, send_file, abort
+
+from signage.models import Slide
+from signage.slidestore import SlideStore
 
 load_dotenv()
 
@@ -109,18 +112,16 @@ def serve_internal_image(encoded_path):
     Returns:
         Response: The image file response or a 404 error if the file doesn't exist.
     """
-    import urllib.parse
-
     full_path = urllib.parse.unquote(encoded_path)
 
     # Ensure leading slash is restored if missing
     if not full_path.startswith("/"):
         full_path = "/" + full_path
 
-    print(f"[DEBUG] Attempting to serve actual file path: {full_path}")
+    logging.debug(f"Attempting to serve actual file path: {full_path}")
 
     if not os.path.isfile(full_path):
-        print("[DEBUG] File not found!")
+        logging.debug("File not found!")
         return abort(404)
 
     return send_file(full_path, mimetype="image/*")
@@ -310,7 +311,7 @@ def run_flask():
     SSL is enabled if USE_SSL is set to "true" in the environment variables and
     the certificate files (cert.pem and key.pem) exist.
     """
-    print("Flask server starting...")
+    logging.info("Flask server starting...")
 
     ssl_context = None
     if USE_SSL:
@@ -319,6 +320,6 @@ def run_flask():
         if os.path.exists(cert_path) and os.path.exists(key_path):
             ssl_context = (cert_path, key_path)
         else:
-            print("⚠️ SSL requested but cert.pem or key.pem not found — continuing without SSL.")
+            logging.warning("SSL requested but cert.pem or key.pem not found — continuing without SSL.")
 
     app.run(host=HOST, port=PORT, ssl_context=ssl_context)

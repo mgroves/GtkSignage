@@ -6,9 +6,11 @@ It handles loading, saving, and filtering slides based on their active status.
 The slides are stored in a JSON file and accessed through the SlideStore class.
 """
 import os
+import logging
 from datetime import datetime
-from .models import Slide
+
 from .jsonfile import JSONFileHandler
+from .models import Slide
 
 class SlideStore:
     """
@@ -48,9 +50,10 @@ class SlideStore:
                         hide=item.get("hide", False)
                     )
                     cls._slides.append(slide)
-                except Exception:
-                    pass
-        except Exception:
+                except (KeyError, ValueError) as e:
+                    logging.error(f"Error parsing slide data: {e}")
+        except (IOError, ValueError, json.JSONDecodeError) as e:
+            logging.error(f"Error loading slides file: {e}")
             cls._slides = []
 
     @classmethod
@@ -107,7 +110,8 @@ class SlideStore:
 
         try:
             current_data = cls._file_handler.load()
-        except Exception:
+        except (IOError, json.JSONDecodeError) as e:
+            logging.error(f"Error loading slides for adding new slide: {e}")
             current_data = []
 
         current_data.append({
@@ -121,8 +125,8 @@ class SlideStore:
         try:
             cls._file_handler.save(current_data)
             cls.force_reload()
-        except Exception:
-            pass
+        except (IOError, PermissionError) as e:
+            logging.error(f"Error saving slides: {e}")
 
     @classmethod
     def save_slides(cls, slides):

@@ -57,22 +57,31 @@ If you want to contribute documentation, bless you. Right now it's just a README
 
 ## Styleguides
 
-Follow [PEP 8](https://www.python.org/dev/peps/pep-0008/) style guidelines for Python code. You can use tools like `flake8` or `pylint` to check your code for PEP 8 compliance.
+This project follows a detailed style guide available in [style_guide.md](style_guide.md). Please review this document before contributing code.
 
-Also, when in doubt, favor verbosity over terseness, especially for readability sake.
+The style guide is based on [PEP 8](https://www.python.org/dev/peps/pep-0008/) with some project-specific conventions. Key points include:
 
-**Example**:
+- Organize imports into three groups: standard library, third-party, and local application
+- Use proper docstrings for all modules, classes, and functions
+- Use logging instead of print statements
+- Be specific about exception handling
+- Favor readability over terseness
 
-I'd prefer:
+You can use tools like `flake8` or `pylint` to check your code for PEP 8 compliance.
+
+**Example of favoring readability**:
+
+Preferred:
 ```python
 is_approved = condition_1 or condition_2
 if is_approved:
-    # whatever
+    # do something
 ```
-over:
+
+Instead of:
 ```python
 if condition_1 or condition_2:
-    # whatever
+    # do something
 ```
 The latter is terse, but the former is more readable and more self-documenting.
 

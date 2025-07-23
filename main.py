@@ -9,14 +9,23 @@ The application combines a web-based admin interface with a GTK-based
 display that shows slides according to configured settings.
 """
 
-from signage.ui import SignageWindow
-from signage.server import run_flask
-import gi
-import threading
 import sys
+import threading
+import logging
+
+import gi
+from gi.repository import Gtk
+
+from signage.server import run_flask
+from signage.ui import SignageWindow
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
 
 if __name__ == "__main__":
     try:
@@ -24,10 +33,10 @@ if __name__ == "__main__":
         flask_thread = threading.Thread(target=run_flask, daemon=True)
         flask_thread.start()
 
-        print("Starting GTK...")
+        logging.info("Starting GTK...")
         win = SignageWindow()
         Gtk.main()
     except KeyboardInterrupt:
-        print("Caught Ctrl+C, shutting down.")
+        logging.info("Caught Ctrl+C, shutting down.")
         Gtk.main_quit()
         sys.exit(0)
