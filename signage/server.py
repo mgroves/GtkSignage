@@ -14,6 +14,7 @@ import logging
 
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, send_file, abort
+from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from signage.models import Slide
@@ -27,9 +28,24 @@ USE_SSL = os.getenv("USE_SSL", "false").lower() == "true"
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
+csrf = CSRFProtect(app)
 
 admin_user = os.getenv("ADMIN_USERNAME")
 admin_pass = os.getenv("ADMIN_PASSWORD")
+
+@app.errorhandler(CSRFError)
+def handle_csrf_error(e):
+    """
+    Handle CSRF errors by logging the error and returning an error message.
+    
+    Args:
+        e (CSRFError): The CSRF error that occurred.
+        
+    Returns:
+        Response: Error message with 400 status code.
+    """
+    logging.error(f"CSRF error: {e.description}")
+    return "CSRF token validation failed. Please try again.", 400
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "..", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -437,13 +453,14 @@ def edit_slide(index):
 
     return render_template("edit.html", slide=slides[index], index=index)
 
-@app.route("/admin/delete/<int:index>")
+@app.route("/admin/delete/<int:index>", methods=["POST"])
 @login_required
 def delete_slide(index):
     """
     Handle deleting a slide.
     
     Removes the slide at the specified index and redirects to the admin page.
+    This route only accepts POST requests to prevent CSRF attacks.
     
     Args:
         index (int): The index of the slide to delete.

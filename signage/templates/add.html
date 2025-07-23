@@ -11,6 +11,7 @@
     <p><a href="{{ url_for('admin') }}" class="btn">← Back to Admin</a></p>
 
     <form action="/admin/add" method="post" enctype="multipart/form-data" onsubmit="return validateForm()">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <label for="source">Image URL (optional)</label>
         <input type="text" id="source" name="source" placeholder="https:// or http://">
     

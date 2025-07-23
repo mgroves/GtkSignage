@@ -11,6 +11,7 @@
     <p><a href="{{ url_for('admin') }}" class="btn">← Back to Admin</a></p>
 
     <form action="/admin/edit/{{ index }}" method="post" onsubmit="return validateForm()">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="source" value="{{ slide.source }}">
 
         <label>Source</label>
