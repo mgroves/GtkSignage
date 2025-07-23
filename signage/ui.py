@@ -1,3 +1,11 @@
+"""
+UI Module
+
+This module provides the GTK-based user interface for the signage application.
+It creates a window with a WebKit2 webview that displays slides in a loop.
+The slides are loaded from the SlideStore and displayed according to their
+configured duration.
+"""
 import gi
 import sys
 import os
@@ -19,7 +27,20 @@ SCHEME = "https" if USE_SSL else "http"
 ADMIN_URL = f"{SCHEME}://{DISPLAY_HOST}:{PORT}/admin"
 
 class SignageWindow(Gtk.Window):
+    """
+    Main window for the GTK Signage application.
+    
+    This class creates a GTK window with a WebKit2 webview that displays slides
+    in a continuous loop. It handles the display logic, including timing between
+    slides and showing a message when no slides are available.
+    """
     def __init__(self):
+        """
+        Initialize the SignageWindow.
+        
+        Creates a GTK window with a WebKit2 webview, sets up the initial size,
+        and starts the slide loop after a 1-second delay.
+        """
         Gtk.Window.__init__(self, title="Signage")
         self.set_default_size(1280, 720)
         self.connect("destroy", self.on_destroy)
@@ -33,6 +54,19 @@ class SignageWindow(Gtk.Window):
         GLib.timeout_add_seconds(1, self.slide_loop)
 
     def slide_loop(self):
+        """
+        Main loop for displaying slides.
+        
+        This method is called repeatedly to cycle through the active slides.
+        If no slides are active, it displays a message prompting the user to
+        visit the admin console. Otherwise, it displays each slide for its
+        configured duration before moving to the next one.
+        
+        Returns:
+            bool: Always returns False to indicate that the timeout should not
+                  be automatically repeated. Instead, a new timeout is scheduled
+                  with the appropriate delay for the next slide.
+        """
         active_slides = SlideStore.get_active_slides()
 
         if not active_slides:
@@ -83,6 +117,15 @@ class SignageWindow(Gtk.Window):
         return False
 
     def on_destroy(self, *args):
+        """
+        Handle the window destroy event.
+        
+        This method is called when the window is closed. It stops the GTK main loop
+        and exits the application.
+        
+        Args:
+            *args: Variable length argument list (not used).
+        """
         print("GTK window closed. Shutting down.")
         Gtk.main_quit()
         sys.exit(0)
