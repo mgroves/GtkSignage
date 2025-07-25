@@ -9,12 +9,14 @@ configured duration.
 import os
 import sys
 import logging
+import urllib.parse
 
 import gi
 from dotenv import load_dotenv
 from gi.repository import Gtk, WebKit2, GLib
 
 from signage.slidestore import SlideStore
+from signage.cache import URLCache
 
 load_dotenv()
 
@@ -48,12 +50,93 @@ class SignageWindow(Gtk.Window):
         self.connect("destroy", self.on_destroy)
 
         self.webview = WebKit2.WebView()
+        self.webview.connect("load-failed", self.on_load_failed)
         self.add(self.webview)
 
         self.slide_index = 0
+        self.current_slide = None
         self.show_all()
 
+        # Run cache cleanup on startup and then every 6 hours
+        self.cleanup_cache()
+        GLib.timeout_add_seconds(6 * 60 * 60, self.cleanup_cache)
+        
         GLib.timeout_add_seconds(1, self.slide_loop)
+    
+    def is_url(self, source):
+        """
+        Check if a source is a URL.
+        
+        Args:
+            source (str): The source to check.
+            
+        Returns:
+            bool: True if the source is a URL, False otherwise.
+        """
+        parsed = urllib.parse.urlparse(source)
+        return parsed.scheme in ('http', 'https')
+    
+    def ensure_cached(self, url):
+        """
+        Ensure that a URL is cached.
+        
+        This method checks if a URL needs to be cached and caches it if necessary.
+        
+        Args:
+            url (str): The URL to cache.
+        """
+        try:
+            # Check if the URL is already cached and not expired
+            if not URLCache.is_cached(url) or URLCache.is_cache_expired(url):
+                logging.info(f"Caching URL: {url}")
+                URLCache.cache_url(url)
+            else:
+                logging.debug(f"URL already cached: {url}")
+        except Exception as e:
+            logging.error(f"Error ensuring URL is cached: {e}")
+    
+    def cleanup_cache(self):
+        """
+        Clean up expired cache files.
+        
+        This method removes all cached files that are older than the expiry time.
+        
+        Returns:
+            bool: Always returns True to ensure the timeout is repeated.
+        """
+        logging.info("Running cache cleanup")
+        try:
+            URLCache.cleanup_expired_cache()
+        except Exception as e:
+            logging.error(f"Error cleaning up cache: {e}")
+        return True
+    
+    def on_load_failed(self, webview, event, uri, error):
+        """
+        Handle load failures by falling back to cached content.
+        
+        This method is called when a web page fails to load. It attempts to
+        load the cached version of the page instead.
+        
+        Args:
+            webview (WebKit2.WebView): The webview that failed to load.
+            event: The load event.
+            uri (str): The URI that failed to load.
+            error: The error that occurred.
+            
+        Returns:
+            bool: True to stop the error from propagating, False otherwise.
+        """
+        logging.error(f"Failed to load {uri}: {error}")
+        
+        if self.current_slide and self.is_url(self.current_slide.source):
+            cached_url = URLCache.get_cached_url(self.current_slide.source)
+            if cached_url != self.current_slide.source:
+                logging.info(f"Falling back to cached version: {cached_url}")
+                webview.load_uri(cached_url)
+                return True
+        
+        return False
 
     def slide_loop(self):
         """
@@ -63,6 +146,10 @@ class SignageWindow(Gtk.Window):
         If no slides are active, it displays a message prompting the user to
         visit the admin console. Otherwise, it displays each slide for its
         configured duration before moving to the next one.
+        
+        For URL slides, this method ensures that the content is cached locally
+        before displaying it. If the URL cannot be loaded (e.g., due to network
+        issues), the cached version is displayed instead.
         
         Returns:
             bool: Always returns False to indicate that the timeout should not
@@ -74,6 +161,7 @@ class SignageWindow(Gtk.Window):
         if not active_slides:
             logging.info("No active slides")
             self.slide_index = 0
+            self.current_slide = None
 
             # Show message prompting user to visit the admin console
             self.webview.load_html(
@@ -108,11 +196,55 @@ class SignageWindow(Gtk.Window):
             return False
 
         self.slide_index %= len(active_slides)
-        current_slide = active_slides[self.slide_index]
-        logging.info(f"Showing slide: {current_slide.source}")
-        self.webview.load_uri(current_slide.source)
+        self.current_slide = active_slides[self.slide_index]
+        source = self.current_slide.source
+        logging.info(f"Showing slide: {source}")
+        
+        # Handle URL slides with caching
+        if self.is_url(source):
+            try:
+                # Ensure the URL is cached
+                self.ensure_cached(source)
+                
+                # Try to load the original URL first
+                self.webview.load_uri(source)
+            except Exception as e:
+                logging.error(f"Error loading URL {source}: {e}")
+                
+                # Fall back to cached version if available
+                cached_url = URLCache.get_cached_url(source)
+                if cached_url != source:
+                    logging.info(f"Falling back to cached version: {cached_url}")
+                    self.webview.load_uri(cached_url)
+                else:
+                    logging.error(f"No cached version available for {source}")
+                    self.webview.load_html(
+                        f"""
+                        <html>
+                            <head>
+                                <style>
+                                    body {{
+                                        font-family: sans-serif;
+                                        text-align: center;
+                                        margin-top: 20%;
+                                        color: #444;
+                                    }}
+                                </style>
+                            </head>
+                            <body>
+                                <h1>Error Loading Content</h1>
+                                <p>Could not load: {source}</p>
+                                <p>No cached version available.</p>
+                            </body>
+                        </html>
+                        """,
+                        "about:blank"
+                    )
+        else:
+            # Non-URL slides (e.g., local files) are loaded directly
+            self.webview.load_uri(source)
 
-        delay = current_slide.duration
+        delay = self.current_slide.duration
         self.slide_index = (self.slide_index + 1) % len(active_slides)
         GLib.timeout_add_seconds(delay, self.slide_loop)
 

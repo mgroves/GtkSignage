@@ -42,6 +42,13 @@ USE_SSL=$(echo "$USE_SSL" | tr '[:upper:]' '[:lower:]')
 USE_SSL=${USE_SSL:-n}
 USE_SSL_VALUE="false"
 
+# Prompt for cache settings
+read -p "Enter cache directory [cache]: " CACHE_DIR
+CACHE_DIR=${CACHE_DIR:-cache}
+
+read -p "Enter cache expiry time in hours [48]: " CACHE_EXPIRY_HOURS
+CACHE_EXPIRY_HOURS=${CACHE_EXPIRY_HOURS:-48}
+
 if [[ "$USE_SSL" == "y" || "$USE_SSL" == "yes" ]]; then
   USE_SSL_VALUE="true"
 
@@ -67,6 +74,8 @@ FLASK_SECRET_KEY=$FLASK_SECRET
 FLASK_HOST=$FLASK_HOST
 FLASK_PORT=$FLASK_PORT
 USE_SSL=$USE_SSL_VALUE
+CACHE_DIR=$CACHE_DIR
+CACHE_EXPIRY_HOURS=$CACHE_EXPIRY_HOURS
 EOF
 
 # Install required Python packages

@@ -2,3 +2,6 @@ Flask
 Jinja2
 python-dotenv
 Flask-WTF
+requests
+beautifulsoup4
+filelock

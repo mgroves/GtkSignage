@@ -49,3 +49,6 @@ cert.pem
 
 # locks
 slides.json.lock
+
+# cached files
+/cache
