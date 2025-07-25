@@ -6,8 +6,8 @@ All types of contributions are encouraged and valued. See the [Table of Contents
 
 > If you like the project, but just don't have time to contribute code or docs, there are other easy ways to support the project and show your appreciation:
 > - Star the project
-> - Tweet about it
-> - Mention this project in your project's readme
+> - Post about it on social media (X, blogs, etc)
+> - Link to this project in your project's readme
 > - Mention the project at local meetups
 > - Tell your friends/colleagues
 
@@ -40,7 +40,7 @@ Also, search for existing [Issues](https://github.com/mgroves/GtkSignage/issues)
 - Open an [Issue](https://github.com/mgroves/GtkSignage/issues/new).
 - Provide as much context as you can about what you're running into.
 - If you've found a bug, please include a summary, reproduction steps, your expected behavior, the actual behavior, relevant code (minimal examples appreciated), stack trace, and any other notes, screenshots, videos that could help.
-- Provide project and platform versions (e.g. database version, .NET version, operating system, etc), depending on what seems relevant.
+- Provide project and platform versions (e.g. library version, Python version, operating system, etc), depending on what seems relevant.
 
 I'll get to issues as soon as I can, but I can't guarantee any response time.
 
@@ -49,7 +49,7 @@ I'll get to issues as soon as I can, but I can't guarantee any response time.
 > ### Legal Notice 
 > When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content and that the content you contribute may be provided under the project license.
 
-If you are contributing a bug fix, just go on ahead and submit a PR and I'll review it as soon as I can. Please submit at least one automated test to demonstrate the bug as well.
+If you are contributing a bug fix, just go on ahead and submit a PR and I'll review it as soon as I can. And automated test to demonstrate the bug would be appreciated as well.
 
 If you want to contribute a new feature, formatting, code refactoring, or any other non-trivial changes, please first create an issue and discuss it.
 
@@ -66,8 +66,6 @@ The style guide is based on [PEP 8](https://www.python.org/dev/peps/pep-0008/) w
 - Use logging instead of print statements
 - Be specific about exception handling
 - Favor readability over terseness
-
-You can use tools like `flake8` or `pylint` to check your code for PEP 8 compliance.
 
 **Example of favoring readability**:
 
