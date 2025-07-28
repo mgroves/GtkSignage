@@ -103,18 +103,21 @@ echo "Setting up systemd service..."
 sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
 Description=GTK Signage App
-After=network.target
+After=graphical.target
+Requires=graphical.target
 
 [Service]
 ExecStart=$VENV_DIR/bin/python $INSTALL_DIR/main.py
 WorkingDirectory=$INSTALL_DIR
 Restart=always
-User=$USER
+User=$INSTALL_OWNER
 Environment=PYTHONUNBUFFERED=1
+Environment=DISPLAY=:0
 
 [Install]
 WantedBy=default.target
 EOF
+
 
 # Enable and start the service
 echo "Enabling and starting the signage service..."
