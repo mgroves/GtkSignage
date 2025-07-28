@@ -7,12 +7,13 @@ REPO_NAME="GtkSignage"
 BRANCH="prod"
 INSTALL_DIR="/opt/gtk-signage"
 SERVICE_NAME="gtk-signage"
+VENV_DIR="$INSTALL_DIR/venv"
 
-echo "Installing signage software..."
+echo "Installing GtkSignage..."
 
 # Ensure dependencies
 sudo apt update
-sudo apt install -y git python3 python3-pip openssl python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0
+sudo apt install -y git python3 python3-pip python3-venv openssl python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0
 
 # Clone the repo
 if [ ! -d "$INSTALL_DIR" ]; then
@@ -23,16 +24,21 @@ fi
 
 cd "$INSTALL_DIR"
 
-# Install required Python packages
+# Create and activate virtual environment
+echo "Creating virtual environment..."
+python3 -m venv venv
+source "$VENV_DIR/bin/activate"
+
+# Install Python packages inside venv
 echo "Installing Python packages..."
-python3 -m pip install --break-system-packages --no-cache-dir -r requirements.txt
+pip install --no-cache-dir -r requirements.txt
 
 # Prompt for admin credentials
 read -p "Enter admin username: " ADMIN_USERNAME
 read -p "Enter admin password: " ADMIN_PASSWORD
 
 # Hash the password using Werkzeug's generate_password_hash
-HASHED_PASSWORD=$(python3 -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('$ADMIN_PASSWORD'))")
+HASHED_PASSWORD=$("$VENV_DIR/bin/python" -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('$ADMIN_PASSWORD'))")
 
 # Prompt for Flask host/port and SSL
 read -p "Enter Flask host [0.0.0.0]: " FLASK_HOST
@@ -92,7 +98,7 @@ Description=GTK Signage App
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/python3 $INSTALL_DIR/main.py
+ExecStart=$VENV_DIR/bin/python $INSTALL_DIR/main.py
 WorkingDirectory=$INSTALL_DIR
 Restart=always
 User=$USER
