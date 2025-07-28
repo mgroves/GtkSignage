@@ -34,7 +34,7 @@ A lightweight digital signage solution that combines a GTK-based display with a 
 ### Automatic Installation (Recommended)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/mgroves/GtkSignage/prod/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/mgroves/GtkSignage/refs/heads/prod/install.sh)
 ```
 
 The installation script will:

@@ -23,6 +23,10 @@ fi
 
 cd "$INSTALL_DIR"
 
+# Install required Python packages
+echo "Installing Python packages..."
+pip3 install --no-cache-dir -r requirements.txt
+
 # Prompt for admin credentials
 read -p "Enter admin username: " ADMIN_USERNAME
 read -p "Enter admin password: " ADMIN_PASSWORD
@@ -77,10 +81,6 @@ USE_SSL=$USE_SSL_VALUE
 CACHE_DIR=$CACHE_DIR
 CACHE_EXPIRY_HOURS=$CACHE_EXPIRY_HOURS
 EOF
-
-# Install required Python packages
-echo "Installing Python packages..."
-pip3 install --no-cache-dir -r requirements.txt
 
 # Create systemd service
 SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
