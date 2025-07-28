@@ -25,7 +25,7 @@ cd "$INSTALL_DIR"
 
 # Install required Python packages
 echo "Installing Python packages..."
-pip3 install --no-cache-dir -r requirements.txt
+pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Prompt for admin credentials
 read -p "Enter admin username: " ADMIN_USERNAME
