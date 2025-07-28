@@ -25,7 +25,8 @@ else
 fi
 
 # Ensure ownership regardless of whether we cloned or not
-sudo chown -R $USER:$USER "$INSTALL_DIR"
+CURRENT_USER=$(logname)
+sudo chown -R $CURRENT_USER:$CURRENT_USER "$INSTALL_DIR"
 
 cd "$INSTALL_DIR"
 
