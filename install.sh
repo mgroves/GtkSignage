@@ -16,8 +16,10 @@ sudo apt update
 sudo apt install -y git python3 python3-pip python3-venv openssl python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0
 
 # Clone the repo
+# Clone the repo
 if [ ! -d "$INSTALL_DIR" ]; then
   sudo git clone --branch "$BRANCH" "https://github.com/$REPO_USER/$REPO_NAME.git" "$INSTALL_DIR"
+  sudo chown -R $USER:$USER "$INSTALL_DIR"
 else
   echo "$INSTALL_DIR already exists, skipping clone."
 fi
