@@ -21,8 +21,14 @@ if [ ! -d "$INSTALL_DIR" ]; then
 fi
 
 # Always ensure ownership, even if clone was skipped
-CURRENT_USER=$(logname)
-sudo chown -R $CURRENT_USER:$CURRENT_USER "$INSTALL_DIR"
+# Determine the invoking user even when run via sudo or subshell
+if [ -n "$SUDO_UID" ]; then
+  INSTALL_OWNER=$(getent passwd "$SUDO_UID" | cut -d: -f1)
+else
+  INSTALL_OWNER=$(whoami)
+fi
+
+sudo chown -R "$INSTALL_OWNER:$INSTALL_OWNER" "$INSTALL_DIR"
 
 cd "$INSTALL_DIR"
 
