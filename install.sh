@@ -34,7 +34,7 @@ cd "$INSTALL_DIR"
 
 # Create and activate virtual environment
 echo "Creating virtual environment..."
-python3 -m venv venv
+python3 -m venv venv --system-site-packages
 source "$VENV_DIR/bin/activate"
 
 # Install Python packages inside venv
