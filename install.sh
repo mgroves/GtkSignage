@@ -24,6 +24,9 @@ else
   echo "$INSTALL_DIR already exists, skipping clone."
 fi
 
+# Ensure ownership regardless of whether we cloned or not
+sudo chown -R $USER:$USER "$INSTALL_DIR"
+
 cd "$INSTALL_DIR"
 
 # Create and activate virtual environment
