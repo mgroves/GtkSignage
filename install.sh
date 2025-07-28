@@ -13,7 +13,11 @@ echo "Installing GtkSignage..."
 
 # Ensure dependencies
 sudo apt update
-sudo apt install -y git python3 python3-pip python3-venv openssl python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0
+sudo apt install -y \
+  git python3 python3-pip python3-venv openssl \
+  python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
+  xserver-xorg xinit openbox lightdm raspberrypi-ui-mods
+
 
 # Clone the repo
 if [ ! -d "$INSTALL_DIR" ]; then
@@ -113,6 +117,7 @@ Restart=always
 User=$INSTALL_OWNER
 Environment=PYTHONUNBUFFERED=1
 Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/$INSTALL_OWNER/.Xauthority
 
 [Install]
 WantedBy=default.target
@@ -147,3 +152,6 @@ echo "Installation complete. Signage service is running."
 if [[ "$USE_SSL_VALUE" == "true" ]]; then
   echo "🔒 HTTPS is enabled using self-signed certificates."
 fi
+
+echo "💡 Tip: Make sure your Pi is set to boot to Desktop (GUI with autologin)."
+echo "Run 'sudo raspi-config' → System Options → Boot / Auto Login → Desktop Autologin."
