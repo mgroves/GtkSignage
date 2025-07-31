@@ -20,9 +20,9 @@ sudo apt install -y \
 
 # Determine invoking user for autologin + config
 if [ -n "$SUDO_UID" ]; then
-  INSTALL_OWNER=$(getent passwd "$SUDO_UID" | cut -d: -f1)
+  INSTALL_OWNER="$(getent passwd "$SUDO_UID" | cut -d: -f1)"
 else
-  INSTALL_OWNER=$(whoami)
+  INSTALL_OWNER="$(whoami)"
 fi
 
 echo "Using install user: $INSTALL_OWNER"
@@ -38,7 +38,7 @@ cd "$INSTALL_DIR"
 
 # Create and activate virtual environment
 echo "Creating virtual environment..."
-python3 -m venv venv --system-site-packages
+python3 -m venv "$VENV_DIR" --system-site-packages
 source "$VENV_DIR/bin/activate"
 
 # Install Python packages inside venv
@@ -46,18 +46,19 @@ echo "Installing Python packages..."
 pip install --no-cache-dir -r requirements.txt
 
 # Prompt for admin credentials
-read -p "Enter admin username: " ADMIN_USERNAME
-read -p "Enter admin password: " ADMIN_PASSWORD
+read -p "Enter GtkSignage username: " ADMIN_USERNAME
+read -s -p "Enter GtkSignage password: " ADMIN_PASSWORD
+echo
 
 # Hash the password using Werkzeug
 HASHED_PASSWORD=$("$VENV_DIR/bin/python" -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('$ADMIN_PASSWORD'))")
 
 # Prompt for Flask config
-read -p "Enter Flask host [0.0.0.0]: " FLASK_HOST
+read -p "Enter GtkSignage host [0.0.0.0]: " FLASK_HOST
 FLASK_HOST=${FLASK_HOST:-0.0.0.0}
 
-read -p "Enter Flask port [6969]: " FLASK_PORT
-FLASK_PORT=${FLASK_PORT:-6969}
+read -p "Enter GtkSignage port [80]: " FLASK_PORT
+FLASK_PORT=${FLASK_PORT:-80}
 
 read -p "Enable HTTPS (requires cert.pem and key.pem)? [y/N]: " USE_SSL
 USE_SSL=$(echo "$USE_SSL" | tr '[:upper:]' '[:lower:]')
@@ -96,14 +97,14 @@ EOF
 
 # Set up .xinitrc to launch the app via X
 echo "Configuring .xinitrc startup..."
-cat <<EOF | sudo tee /home/$INSTALL_OWNER/.xinitrc > /dev/null
+cat <<'EOF' | sudo tee "/home/$INSTALL_OWNER/.xinitrc" > /dev/null
 #!/bin/bash
 matchbox-window-manager -use_titlebar no &
 unclutter -idle 0 &
-$VENV_DIR/bin/python $INSTALL_DIR/main.py
+/opt/gtk-signage/venv/bin/python /opt/gtk-signage/main.py
 EOF
-sudo chmod +x /home/$INSTALL_OWNER/.xinitrc
-sudo chown $INSTALL_OWNER:$INSTALL_OWNER /home/$INSTALL_OWNER/.xinitrc
+sudo chmod +x "/home/$INSTALL_OWNER/.xinitrc"
+sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "/home/$INSTALL_OWNER/.xinitrc"
 
 # Set up autostarting X via .bash_profile
 echo "Ensuring X autostarts on login..."
