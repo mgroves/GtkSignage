@@ -2,19 +2,10 @@
 
 set -e
 
-# Always ensure ownership, even if clone was skipped
-# Determine the invoking user even when run via sudo or subshell
-if [ -n "$SUDO_UID" ]; then
-  INSTALL_OWNER=$(getent passwd "$SUDO_UID" | cut -d: -f1)
-else
-  INSTALL_OWNER=$(whoami)
-fi
-
 REPO_USER="mgroves"
 REPO_NAME="GtkSignage"
 BRANCH="prod"
 INSTALL_DIR="/opt/gtk-signage"
-SERVICE_NAME="gtk-signage"
 VENV_DIR="$INSTALL_DIR/venv"
 
 echo "Installing GtkSignage..."
@@ -26,29 +17,22 @@ sudo apt install -y \
   python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
   xserver-xorg xinit matchbox-window-manager x11-xserver-utils
 
-# Configure .xinitrc for autostarting your app (for your INSTALL_OWNER)
-cat <<EOF | sudo tee /home/$INSTALL_OWNER/.xinitrc > /dev/null
-#!/bin/bash
-matchbox-window-manager &
-$VENV_DIR/bin/python $INSTALL_DIR/main.py
-EOF
-sudo chmod +x /home/$INSTALL_OWNER/.xinitrc
-sudo chown $INSTALL_OWNER:$INSTALL_OWNER /home/$INSTALL_OWNER/.xinitrc
-
-# Autostart X on login for INSTALL_OWNER
-PROFILE_SCRIPT="/home/$INSTALL_OWNER/.bash_profile"
-if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
-  echo "exec startx" | sudo tee -a "$PROFILE_SCRIPT" > /dev/null
-  sudo chown $INSTALL_OWNER:$INSTALL_OWNER "$PROFILE_SCRIPT"
+# Determine invoking user for autologin + config
+if [ -n "$SUDO_UID" ]; then
+  INSTALL_OWNER=$(getent passwd "$SUDO_UID" | cut -d: -f1)
+else
+  INSTALL_OWNER=$(whoami)
 fi
+
+echo "Using install user: $INSTALL_OWNER"
 
 # Clone the repo
 if [ ! -d "$INSTALL_DIR" ]; then
   sudo git clone --branch "$BRANCH" "https://github.com/$REPO_USER/$REPO_NAME.git" "$INSTALL_DIR"
 fi
 
+# Ensure user owns it
 sudo chown -R "$INSTALL_OWNER:$INSTALL_OWNER" "$INSTALL_DIR"
-
 cd "$INSTALL_DIR"
 
 # Create and activate virtual environment
@@ -64,10 +48,10 @@ pip install --no-cache-dir -r requirements.txt
 read -p "Enter admin username: " ADMIN_USERNAME
 read -p "Enter admin password: " ADMIN_PASSWORD
 
-# Hash the password using Werkzeug's generate_password_hash
+# Hash the password using Werkzeug
 HASHED_PASSWORD=$("$VENV_DIR/bin/python" -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('$ADMIN_PASSWORD'))")
 
-# Prompt for Flask host/port and SSL
+# Prompt for Flask config
 read -p "Enter Flask host [0.0.0.0]: " FLASK_HOST
 FLASK_HOST=${FLASK_HOST:-0.0.0.0}
 
@@ -79,7 +63,6 @@ USE_SSL=$(echo "$USE_SSL" | tr '[:upper:]' '[:lower:]')
 USE_SSL=${USE_SSL:-n}
 USE_SSL_VALUE="false"
 
-# Prompt for cache settings
 read -p "Enter cache directory [cache]: " CACHE_DIR
 CACHE_DIR=${CACHE_DIR:-cache}
 
@@ -88,18 +71,13 @@ CACHE_EXPIRY_HOURS=${CACHE_EXPIRY_HOURS:-48}
 
 if [[ "$USE_SSL" == "y" || "$USE_SSL" == "yes" ]]; then
   USE_SSL_VALUE="true"
-
   echo "Generating self-signed SSL certificate..."
   openssl req -x509 -newkey rsa:2048 -sha256 -nodes \
     -keyout key.pem -out cert.pem -days 365 \
     -subj "/CN=localhost"
-
-  echo "Self-signed certificate created at:"
-  echo "  $INSTALL_DIR/cert.pem"
-  echo "  $INSTALL_DIR/key.pem"
+  echo "Created cert.pem and key.pem"
 fi
 
-# Generate a random Flask secret key
 FLASK_SECRET=$(openssl rand -hex 32)
 
 # Write .env file
@@ -115,39 +93,34 @@ CACHE_DIR=$CACHE_DIR
 CACHE_EXPIRY_HOURS=$CACHE_EXPIRY_HOURS
 EOF
 
-# Create systemd service
-SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-
-echo "Setting up systemd service..."
-sudo tee "$SERVICE_FILE" > /dev/null <<EOF
-[Unit]
-Description=GTK Signage App
-After=graphical.target
-Requires=graphical.target
-
-[Service]
-ExecStart=$VENV_DIR/bin/python $INSTALL_DIR/main.py
-WorkingDirectory=$INSTALL_DIR
-Restart=always
-User=$INSTALL_OWNER
-Environment=PYTHONUNBUFFERED=1
-Environment=DISPLAY=:0
-Environment=XAUTHORITY=/home/$INSTALL_OWNER/.Xauthority
-
-[Install]
-WantedBy=default.target
+# Set up .xinitrc to launch the app via X
+echo "Configuring .xinitrc startup..."
+cat <<EOF | sudo tee /home/$INSTALL_OWNER/.xinitrc > /dev/null
+#!/bin/bash
+matchbox-window-manager &
+$VENV_DIR/bin/python $INSTALL_DIR/main.py
 EOF
+sudo chmod +x /home/$INSTALL_OWNER/.xinitrc
+sudo chown $INSTALL_OWNER:$INSTALL_OWNER /home/$INSTALL_OWNER/.xinitrc
 
+# Set up autostarting X via .bash_profile
+echo "Ensuring X autostarts on login..."
+PROFILE_SCRIPT="/home/$INSTALL_OWNER/.bash_profile"
+if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
+  echo "exec startx" | sudo tee -a "$PROFILE_SCRIPT" > /dev/null
+  sudo chown $INSTALL_OWNER:$INSTALL_OWNER "$PROFILE_SCRIPT"
+fi
 
-# Enable and start the service
-echo "Enabling and starting the signage service..."
-sudo systemctl daemon-reexec
+# Cleanup old systemd service if it exists
+if sudo systemctl is-enabled --quiet gtk-signage.service; then
+  echo "Removing old systemd service..."
+  sudo systemctl disable gtk-signage.service || true
+fi
+sudo rm -f /etc/systemd/system/gtk-signage.service
 sudo systemctl daemon-reload
-sudo systemctl enable "$SERVICE_NAME"
-sudo systemctl restart "$SERVICE_NAME"
 
 # Set journald log size limit
-echo "Configuring systemd journal log size limit..."
+echo "Configuring systemd journal size limits..."
 sudo sed -i '/^#*SystemMaxUse=/d;/^#*SystemKeepFree=/d;/^#*SystemMaxFileSize=/d;/^#*SystemMaxFiles=/d' /etc/systemd/journald.conf
 sudo tee -a /etc/systemd/journald.conf > /dev/null <<EOF
 SystemMaxUse=100M
@@ -157,16 +130,18 @@ SystemMaxFiles=10
 EOF
 sudo systemctl restart systemd-journald
 
-echo "✅ Log output is handled by systemd-journald."
-echo "  To view logs:"
-echo "    sudo journalctl -u $SERVICE_NAME.service"
-echo "    sudo journalctl -u $SERVICE_NAME.service -f  # (live view)"
-echo "  Logs are stored in: /var/log/journal (persistent) or /run/log/journal (volatile)"
+# Force Raspberry Pi to boot to console with autologin
+echo "Forcing boot to console with autologin..."
+sudo raspi-config nonint do_boot_behaviour B2
 
-echo "Installation complete. Signage service is running."
-if [[ "$USE_SSL_VALUE" == "true" ]]; then
-  echo "🔒 HTTPS is enabled using self-signed certificates."
+# Set up startx in bash_profile to launch GTK signage on login
+PROFILE_SCRIPT="/home/$INSTALL_OWNER/.bash_profile"
+if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
+  echo "exec startx" | sudo tee -a "$PROFILE_SCRIPT" > /dev/null
+  sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE_SCRIPT"
 fi
 
-echo "💡 Tip: Make sure your Pi is set to boot to Desktop (GUI with autologin)."
-echo "Run 'sudo raspi-config' → System Options → Boot / Auto Login → Desktop Autologin."
+echo "Boot behavior set to:"
+sudo raspi-config nonint get_boot_behaviour
+
+echo "✅ GtkSignage installed."
