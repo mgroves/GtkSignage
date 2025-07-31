@@ -46,5 +46,27 @@
             {% endfor %}
         </tbody>
     </table>
+
+    <h2>CEC Display Control</h2>
+    <p>Status: <span id="cec-status">Loading...</span></p>
+
+    <form method="post" action="{{ url_for('admin_cec_on') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Turn On</button>
+    </form>
+
+    <form method="post" action="{{ url_for('admin_cec_off') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit">Turn Off</button>
+    </form>
+
+    <script>
+    fetch("{{ url_for('admin_cec_status') }}")
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById("cec-status").textContent = data.status;
+    });
+    </script>
+
 </body>
 </html>

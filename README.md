@@ -145,3 +145,12 @@ A: I think my system provides a much more manageable interface and platform, and
 
 **Q: Why did you do (weird thing in Python)?**
 A: I'm not a Python developer. This was mostly developed with an AI coding assistant. I'm open to suggestions, and please don't assume I know beans about Python, Python ecosystem, or Python idioms.
+
+**Q: What if I'm a crazy person and want to develop this using WSL/Windows?**
+A:
+```
+conda deactivate
+export CEC_FAKE=true
+export DISPLAY=$(grep -oP '(?<=nameserver\s)([0-9\.]+)' /etc/resolv.conf):0
+export LIBGL_ALWAYS_INDIRECT=1
+```

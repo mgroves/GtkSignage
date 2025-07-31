@@ -21,6 +21,8 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from signage.models import Slide
 from signage.slidestore import SlideStore
 
+from signage.cec_control import get_cec_status, cec_power_on, cec_power_off
+
 load_dotenv()
 
 HOST = os.getenv("FLASK_HOST", "127.0.0.1")
@@ -482,6 +484,24 @@ def delete_slide(index):
         SlideStore.save_slides(slides)
         SlideStore.force_reload()
     return redirect("/admin")
+
+
+@app.route("/admin/cec-status")
+@login_required
+def admin_cec_status():
+    return {"status": get_cec_status()}
+
+@app.route("/admin/cec-on", methods=["POST"])
+@login_required
+def admin_cec_on():
+    cec_power_on()
+    return redirect(url_for("admin"))
+
+@app.route("/admin/cec-off", methods=["POST"])
+@login_required
+def admin_cec_off():
+    cec_power_off()
+    return redirect(url_for("admin"))
 
 # Entrypoint
 def run_flask():
