@@ -111,14 +111,6 @@ if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
   sudo chown $INSTALL_OWNER:$INSTALL_OWNER "$PROFILE_SCRIPT"
 fi
 
-# Cleanup old systemd service if it exists
-if sudo systemctl is-enabled --quiet gtk-signage.service; then
-  echo "Removing old systemd service..."
-  sudo systemctl disable gtk-signage.service || true
-fi
-sudo rm -f /etc/systemd/system/gtk-signage.service
-sudo systemctl daemon-reload
-
 # Set journald log size limit
 echo "Configuring systemd journal size limits..."
 sudo sed -i '/^#*SystemMaxUse=/d;/^#*SystemKeepFree=/d;/^#*SystemMaxFileSize=/d;/^#*SystemMaxFiles=/d' /etc/systemd/journald.conf
