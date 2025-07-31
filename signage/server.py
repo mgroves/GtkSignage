@@ -14,6 +14,7 @@ import logging
 
 from dotenv import load_dotenv
 from flask import Flask, render_template, request, redirect, url_for, session, send_file, abort
+from flask import request, redirect
 from flask_wtf.csrf import CSRFProtect, CSRFError
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -29,6 +30,13 @@ USE_SSL = os.getenv("USE_SSL", "false").lower() == "true"
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 csrf = CSRFProtect(app)
+
+# Redirect HTTP to HTTPS if enabled
+if USE_SSL:
+    @app.before_request
+    def redirect_to_https():
+        if request.headers.get("X-Forwarded-Proto", "http") == "http" and request.url.startswith("http://"):
+            return redirect(request.url.replace("http://", "https://", 1), code=301)
 
 admin_user = os.getenv("ADMIN_USERNAME")
 admin_pass = os.getenv("ADMIN_PASSWORD")
