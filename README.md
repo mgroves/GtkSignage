@@ -1,33 +1,36 @@
 # GTK Signage
 
-A lightweight digital signage solution that combines a GTK-based display with a web-based management interface. Perfect for information displays, menu boards, and other digital signage needs. Designed with Raspberry Pi in mind.
+A lightweight digital signage system combining a GTK-based fullscreen display with a Flask-powered admin interface. Ideal for Raspberry Pi setups powering menu boards, information kiosks, or in-store promos.
+
+> ⚠️ **Designed specifically for Raspberry Pi using Debian Bookworm Lite.** The install script assumes `systemd`, installs `matchbox-window-manager`, and configures auto-login and X11 startup.
 
 ## Features
 
-- **Simple Web-Based Management**: Add, edit, and delete slides through an intuitive web interface
-- **Flexible Content Display**: Show web pages or (uploaded) images
-- **Scheduling**: Set start and end times for each slide to control when content is displayed
-- **Secure Admin Interface**: Password-protected admin console
-- **Lightweight**: Minimal dependencies and system requirements, single process
-- **Easy Installation**: installation script for Linux systems
-- **SSL Support**: Optional HTTPS for secure admin access
-- **Caching**: Saving local copies of URL slides (and associated JS/CSS/images) in case internet goes out
+- **Web Admin Interface**: Add, edit, delete slides via browser
+- **Flexible Display**: Show web pages or uploaded images
+- **Scheduling Support**: Control slide visibility with start/end timestamps
+- **Secure Access**: Password-protected admin login with hashed credentials
+- **Local Caching**: Saves web content (HTML, JS, images, CSS) to survive internet outages
+- **Single Process Display**: Minimal overhead, fullscreen GTK WebView
+- **Auto-Start on Boot**: X11 display launches automatically after login using `matchbox-window-manager`
+- **HTTPS Support**: Optional self-signed SSL certs for admin
+- **Easy Install Script**: Sets up everything on Raspberry Pi or other Linux systems
 
 ## Requirements
 
 ### System Requirements
-- Linux system with systemd
+- Raspberry Pi with Debian Bookworm Lite (or similar Linux with `systemd`)
 - Python 3
-- GTK 3.0
-- WebKit2
+- GTK 3 + WebKit2
+- X11 with `matchbox-window-manager`
 
 ### Python Dependencies
-- Flask, Flask-WTF
-- Jinja2
-- python-dotenv
-- requests
-- beautifulsoup4
-- filelock
+- Flask, Flask-WTF  
+- Jinja2  
+- python-dotenv  
+- requests  
+- beautifulsoup4  
+- filelock  
 
 ## Installation
 
@@ -147,7 +150,7 @@ A: I think my system provides a much more manageable interface and platform, and
 A: I'm not a Python developer. This was mostly developed with an AI coding assistant. I'm open to suggestions, and please don't assume I know beans about Python, Python ecosystem, or Python idioms.
 
 **Q: What if I'm a crazy person and want to develop this using WSL/Windows?**
-A:
+A: You will need to use some/all of these commands when running in WSL. Don't expect this to be supported, these are really just notes for my crazy self.
 ```
 conda deactivate
 export CEC_FAKE=true
