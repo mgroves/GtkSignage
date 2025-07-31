@@ -57,8 +57,8 @@ HASHED_PASSWORD=$("$VENV_DIR/bin/python" -c "from werkzeug.security import gener
 read -p "Enter GtkSignage host [0.0.0.0]: " FLASK_HOST
 FLASK_HOST=${FLASK_HOST:-0.0.0.0}
 
-read -p "Enter GtkSignage port [80]: " FLASK_PORT
-FLASK_PORT=${FLASK_PORT:-80}
+read -p "Enter GtkSignage port [8080]: " FLASK_PORT
+FLASK_PORT=${FLASK_PORT:-8080}
 
 read -p "Enable HTTPS (requires cert.pem and key.pem)? [y/N]: " USE_SSL
 USE_SSL=$(echo "$USE_SSL" | tr '[:upper:]' '[:lower:]')
