@@ -143,4 +143,7 @@ if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
   sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE_SCRIPT"
 fi
 
-echo "✅ GtkSignage installed."
+echo
+read -n 1 -s -r -p "✅ GtkSignage installed. Press any key to reboot and start the signage system..."
+echo
+sudo reboot
