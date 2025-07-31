@@ -15,6 +15,7 @@ A lightweight digital signage system combining a GTK-based fullscreen display wi
 - **Auto-Start on Boot**: X11 display launches automatically after login using `matchbox-window-manager`
 - **HTTPS Support**: Optional self-signed SSL certs for admin
 - **Easy Install Script**: Sets up everything on Raspberry Pi or other Linux systems
+- **CEC**: For hardware with HDMI CEC support, to schedule and manually turn off/on display devices.
 
 ## Requirements
 
