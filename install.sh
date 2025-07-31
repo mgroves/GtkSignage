@@ -15,7 +15,8 @@ sudo apt update
 sudo apt install -y \
   git python3 python3-pip python3-venv openssl \
   python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
-  xserver-xorg xinit matchbox-window-manager x11-xserver-utils
+  xserver-xorg xinit matchbox-window-manager x11-xserver-utils \
+  unclutter
 
 # Determine invoking user for autologin + config
 if [ -n "$SUDO_UID" ]; then
@@ -97,7 +98,8 @@ EOF
 echo "Configuring .xinitrc startup..."
 cat <<EOF | sudo tee /home/$INSTALL_OWNER/.xinitrc > /dev/null
 #!/bin/bash
-matchbox-window-manager &
+matchbox-window-manager -use_titlebar no &
+unclutter -idle 0 &
 $VENV_DIR/bin/python $INSTALL_DIR/main.py
 EOF
 sudo chmod +x /home/$INSTALL_OWNER/.xinitrc
@@ -106,9 +108,17 @@ sudo chown $INSTALL_OWNER:$INSTALL_OWNER /home/$INSTALL_OWNER/.xinitrc
 # Set up autostarting X via .bash_profile
 echo "Ensuring X autostarts on login..."
 PROFILE_SCRIPT="/home/$INSTALL_OWNER/.bash_profile"
+
+# Create if missing
+if [ ! -f "$PROFILE_SCRIPT" ]; then
+  sudo touch "$PROFILE_SCRIPT"
+  sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE_SCRIPT"
+fi
+
+# Append exec startx if not present
 if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
   echo "exec startx" | sudo tee -a "$PROFILE_SCRIPT" > /dev/null
-  sudo chown $INSTALL_OWNER:$INSTALL_OWNER "$PROFILE_SCRIPT"
+  sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE_SCRIPT"
 fi
 
 # Set journald log size limit
@@ -126,14 +136,6 @@ sudo systemctl restart systemd-journald
 echo "Forcing boot to console with autologin..."
 sudo raspi-config nonint do_boot_behaviour B2
 echo "Boot to console with autologin enabled."
-
-
-# Set up startx in bash_profile to launch GTK signage on login
-PROFILE_SCRIPT="/home/$INSTALL_OWNER/.bash_profile"
-if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
-  echo "exec startx" | sudo tee -a "$PROFILE_SCRIPT" > /dev/null
-  sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE_SCRIPT"
-fi
 
 echo
 read -n 1 -s -r -p "✅ GtkSignage installed. Press any key to reboot and start the signage system..."
