@@ -133,6 +133,8 @@ sudo systemctl restart systemd-journald
 # Force Raspberry Pi to boot to console with autologin
 echo "Forcing boot to console with autologin..."
 sudo raspi-config nonint do_boot_behaviour B2
+echo "Boot to console with autologin enabled."
+
 
 # Set up startx in bash_profile to launch GTK signage on login
 PROFILE_SCRIPT="/home/$INSTALL_OWNER/.bash_profile"
@@ -140,8 +142,5 @@ if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
   echo "exec startx" | sudo tee -a "$PROFILE_SCRIPT" > /dev/null
   sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE_SCRIPT"
 fi
-
-echo "Boot behavior set to:"
-sudo raspi-config nonint get_boot_behaviour
 
 echo "✅ GtkSignage installed."
