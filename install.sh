@@ -2,6 +2,14 @@
 
 set -e
 
+# Always ensure ownership, even if clone was skipped
+# Determine the invoking user even when run via sudo or subshell
+if [ -n "$SUDO_UID" ]; then
+  INSTALL_OWNER=$(getent passwd "$SUDO_UID" | cut -d: -f1)
+else
+  INSTALL_OWNER=$(whoami)
+fi
+
 REPO_USER="mgroves"
 REPO_NAME="GtkSignage"
 BRANCH="prod"
@@ -16,20 +24,27 @@ sudo apt update
 sudo apt install -y \
   git python3 python3-pip python3-venv openssl \
   python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
-  xserver-xorg xinit openbox lightdm raspberrypi-ui-mods
+  xserver-xorg xinit matchbox-window-manager x11-xserver-utils
 
+# Configure .xinitrc for autostarting your app (for your INSTALL_OWNER)
+cat <<EOF | sudo tee /home/$INSTALL_OWNER/.xinitrc > /dev/null
+#!/bin/bash
+matchbox-window-manager &
+$VENV_DIR/bin/python $INSTALL_DIR/main.py
+EOF
+sudo chmod +x /home/$INSTALL_OWNER/.xinitrc
+sudo chown $INSTALL_OWNER:$INSTALL_OWNER /home/$INSTALL_OWNER/.xinitrc
+
+# Autostart X on login for INSTALL_OWNER
+PROFILE_SCRIPT="/home/$INSTALL_OWNER/.bash_profile"
+if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
+  echo "exec startx" | sudo tee -a "$PROFILE_SCRIPT" > /dev/null
+  sudo chown $INSTALL_OWNER:$INSTALL_OWNER "$PROFILE_SCRIPT"
+fi
 
 # Clone the repo
 if [ ! -d "$INSTALL_DIR" ]; then
   sudo git clone --branch "$BRANCH" "https://github.com/$REPO_USER/$REPO_NAME.git" "$INSTALL_DIR"
-fi
-
-# Always ensure ownership, even if clone was skipped
-# Determine the invoking user even when run via sudo or subshell
-if [ -n "$SUDO_UID" ]; then
-  INSTALL_OWNER=$(getent passwd "$SUDO_UID" | cut -d: -f1)
-else
-  INSTALL_OWNER=$(whoami)
 fi
 
 sudo chown -R "$INSTALL_OWNER:$INSTALL_OWNER" "$INSTALL_DIR"
