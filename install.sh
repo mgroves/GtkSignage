@@ -97,14 +97,21 @@ EOF
 
 # Set up .xinitrc to launch the app via X
 echo "Configuring .xinitrc startup..."
-cat <<'EOF' | sudo tee "/home/$INSTALL_OWNER/.xinitrc" > /dev/null
+
+XINITRC_PATH="/home/$INSTALL_OWNER/.xinitrc"
+
+sudo tee "$XINITRC_PATH" > /dev/null <<EOF
 #!/bin/bash
 matchbox-window-manager -use_titlebar no &
 unclutter -idle 0 &
-/opt/gtk-signage/venv/bin/python /opt/gtk-signage/main.py
+xset s off
+xset -dpms
+xset s noblank
+$VENV_DIR/bin/python $INSTALL_DIR/main.py
 EOF
-sudo chmod +x "/home/$INSTALL_OWNER/.xinitrc"
-sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "/home/$INSTALL_OWNER/.xinitrc"
+
+sudo chmod +x "$XINITRC_PATH"
+sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$XINITRC_PATH"
 
 # Set up autostarting X via .bash_profile
 echo "Ensuring X autostarts on login..."
