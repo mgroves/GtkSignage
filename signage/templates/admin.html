@@ -68,13 +68,5 @@
     });
     </script>
 
-    {% if update_available %}
-    <form action="{{ url_for('admin.update_software') }}" method="post">
-        <button type="submit" class="btn btn-warning">Update Software</button>
-    </form>
-    {% else %}
-    <button class="btn btn-secondary" disabled>No Updates Available</button>
-    {% endif %}
-
 </body>
 </html>
