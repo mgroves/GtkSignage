@@ -20,7 +20,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from signage.models import Slide
 from signage.slidestore import SlideStore
-
+from signage.utils import is_update_available
 from signage.cec_control import get_cec_status, cec_power_on, cec_power_off
 
 load_dotenv()
@@ -242,12 +242,14 @@ def admin():
     Render the admin dashboard page.
     
     This page displays all slides and provides controls for managing them.
-    Requires authentication.
+    Also indicates if an update is available.
     
     Returns:
-        Response: Rendered admin.html template with all slides.
+        Response: Rendered admin.html template with all slides and update status.
     """
-    return render_template("admin.html", slides=SlideStore.get_all_slides())
+    update_available = is_update_available()
+    slides = SlideStore.get_all_slides()
+    return render_template("admin.html", slides=slides, update_available=update_available)
 
 @app.route("/admin/add", methods=["GET", "POST"])
 @login_required
