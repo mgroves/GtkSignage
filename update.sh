@@ -6,16 +6,16 @@ REPO_USER="mgroves"
 REPO_NAME="GtkSignage"
 BRANCH="prod"
 INSTALL_DIR="/opt/gtk-signage"
-SERVICE_NAME="gtk-signage"
+VENV_DIR="$INSTALL_DIR/venv"
 
-echo "Updating signage software from GitHub..."
+echo "Updating GtkSignage..."
 
-# Make sure git is installed
+# Ensure git is available
 sudo apt update
 sudo apt install -y git
 
 if [ ! -d "$INSTALL_DIR" ]; then
-  echo "Install directory not found: $INSTALL_DIR"
+  echo "❌ Install directory not found: $INSTALL_DIR"
   echo "Run install.sh first."
   exit 1
 fi
@@ -23,13 +23,20 @@ fi
 cd "$INSTALL_DIR"
 
 echo "Fetching latest code from $BRANCH branch..."
-sudo git fetch origin "$BRANCH"
-sudo git reset --hard "origin/$BRANCH"
+git fetch origin "$BRANCH"
+git reset --hard "origin/$BRANCH"
 
-echo "Reinstalling Python dependencies..."
-sudo pip3 install --no-cache-dir -r requirements.txt
+if [ -d "$VENV_DIR" ]; then
+  echo "Activating virtual environment and installing updated dependencies..."
+  source "$VENV_DIR/bin/activate"
+  pip install --no-cache-dir -r requirements.txt
+else
+  echo "❌ Virtual environment not found: $VENV_DIR"
+  echo "Run install.sh again to set it up."
+  exit 1
+fi
 
-echo "Restarting signage service..."
-sudo systemctl restart "$SERVICE_NAME"
-
-echo "✅ Update complete."
+echo
+read -n 1 -s -r -p "✅ Update complete. Press any key to reboot and apply changes..."
+echo
+sudo reboot
