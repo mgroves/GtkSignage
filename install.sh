@@ -16,7 +16,7 @@ sudo apt install -y \
   git python3 python3-pip python3-venv openssl \
   python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
   xserver-xorg xinit matchbox-window-manager x11-xserver-utils \
-  unclutter
+  unclutter libcec-dev cec-utils python3-libcec
 
 # Determine invoking user for autologin + config
 if [ -n "$SUDO_UID" ]; then
@@ -71,28 +71,69 @@ CACHE_DIR=${CACHE_DIR:-cache}
 read -p "Enter cache expiry time in hours [48]: " CACHE_EXPIRY_HOURS
 CACHE_EXPIRY_HOURS=${CACHE_EXPIRY_HOURS:-48}
 
-if [[ "$USE_SSL" == "y" || "$USE_SSL" == "yes" ]]; then
-  USE_SSL_VALUE="true"
-  echo "Generating self-signed SSL certificate..."
-  openssl req -x509 -newkey rsa:2048 -sha256 -nodes \
-    -keyout key.pem -out cert.pem -days 365 \
-    -subj "/CN=localhost"
-  echo "Created cert.pem and key.pem"
+# Prompt to enable HDMI-CEC control
+read -p "Enable HDMI-CEC display control? [y/N]: " CEC_ENABLE_INPUT
+CEC_ENABLE_INPUT=$(echo "$CEC_ENABLE_INPUT" | tr '[:upper:]' '[:lower:]')
+CEC_ENABLE="false"
+if [[ "$CEC_ENABLE_INPUT" == "y" || "$CEC_ENABLE_INPUT" == "yes" ]]; then
+  CEC_ENABLE="true"
+
+  # Function to validate HH:MM time format
+  validate_time() {
+    [[ "$1" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]]
+  }
+
+  # Prompt for start time
+  while true; do
+    read -p "CEC start time (24h format, e.g. 08:00): " CEC_START
+    CEC_START=${CEC_START:-08:00}
+    if validate_time "$CEC_START"; then
+      break
+    else
+      echo "❌ Invalid time format. Please use HH:MM (24-hour)."
+    fi
+  done
+
+  # Prompt for end time
+  while true; do
+    read -p "CEC end time (24h format, e.g. 22:00): " CEC_END
+    CEC_END=${CEC_END:-22:00}
+    if ! validate_time "$CEC_END"; then
+      echo "❌ Invalid time format. Please use HH:MM (24-hour)."
+      continue
+    fi
+
+    # Compare times using minutes since midnight
+    start_minutes=$((10#${CEC_START%%:*} * 60 + 10#${CEC_START##*:}))
+    end_minutes=$((10#${CEC_END%%:*} * 60 + 10#${CEC_END##*:}))
+    if (( end_minutes <= start_minutes )); then
+      echo "❌ End time must be after start time."
+    else
+      break
+    fi
+  done
+else
+  CEC_START=""
+  CEC_END=""
 fi
+
 
 FLASK_SECRET=$(openssl rand -hex 32)
 
 # Write .env file
 echo "Creating .env file..."
-cat <<EOF | sudo tee .env > /dev/null
-ADMIN_USERNAME=$ADMIN_USERNAME
-ADMIN_PASSWORD=$HASHED_PASSWORD
-FLASK_SECRET_KEY=$FLASK_SECRET
-FLASK_HOST=$FLASK_HOST
-FLASK_PORT=$FLASK_PORT
-USE_SSL=$USE_SSL_VALUE
-CACHE_DIR=$CACHE_DIR
-CACHE_EXPIRY_HOURS=$CACHE_EXPIRY_HOURS
+cat <<EOF > .env
+ADMIN_USERNAME="$ADMIN_USERNAME"
+ADMIN_PASSWORD="$HASHED_PASSWORD"
+FLASK_SECRET_KEY="$FLASK_SECRET"
+FLASK_HOST="$FLASK_HOST"
+FLASK_PORT="$FLASK_PORT"
+USE_SSL="$USE_SSL_VALUE"
+CACHE_DIR="$CACHE_DIR"
+CACHE_EXPIRY_HOURS="$CACHE_EXPIRY_HOURS"
+CEC_ENABLE="$CEC_ENABLE"
+CEC_START="$CEC_START"
+CEC_END="$CEC_END"
 EOF
 
 # Set up .xinitrc to launch the app via X
@@ -145,7 +186,12 @@ echo "Forcing boot to console with autologin..."
 sudo raspi-config nonint do_boot_behaviour B2
 echo "Boot to console with autologin enabled."
 
-echo
-read -n 1 -s -r -p "✅ GtkSignage installed. Press any key to reboot and start the signage system..."
-echo
-sudo reboot
+read -p "✅ GtkSignage installed. Reboot now to start the signage system? [y/N]: " REBOOT_ANSWER
+REBOOT_ANSWER=$(echo "$REBOOT_ANSWER" | tr '[:upper:]' '[:lower:]')
+
+if [[ "$REBOOT_ANSWER" == "y" || "$REBOOT_ANSWER" == "yes" ]]; then
+  echo "Rebooting..."
+  sudo reboot
+else
+  echo "Reboot skipped. You can reboot manually with 'sudo reboot' later."
+fi

@@ -10,10 +10,11 @@ VENV_DIR="$INSTALL_DIR/venv"
 
 echo "Updating GtkSignage..."
 
-# Ensure git is available
+# Ensure required tools are available
 sudo apt update
-sudo apt install -y git
+sudo apt install -y git libcec-dev cec-utils python3-libcec
 
+# Check for install dir
 if [ ! -d "$INSTALL_DIR" ]; then
   echo "❌ Install directory not found: $INSTALL_DIR"
   echo "Run install.sh first."
@@ -26,6 +27,7 @@ echo "Fetching latest code from $BRANCH branch..."
 git fetch origin "$BRANCH"
 git reset --hard "origin/$BRANCH"
 
+# Check and activate venv
 if [ -d "$VENV_DIR" ]; then
   echo "Activating virtual environment and installing updated dependencies..."
   source "$VENV_DIR/bin/activate"
@@ -36,7 +38,14 @@ else
   exit 1
 fi
 
+# Optional reboot confirmation
 echo
-read -n 1 -s -r -p "✅ Update complete. Press any key to reboot and apply changes..."
-echo
-sudo reboot
+read -p "✅ Update complete. Reboot now to apply changes? [y/N]: " REBOOT_ANSWER
+REBOOT_ANSWER=$(echo "$REBOOT_ANSWER" | tr '[:upper:]' '[:lower:]')
+
+if [[ "$REBOOT_ANSWER" == "y" || "$REBOOT_ANSWER" == "yes" ]]; then
+  echo "Rebooting..."
+  sudo reboot
+else
+  echo "Reboot skipped. You can reboot manually with 'sudo reboot' later."
+fi
