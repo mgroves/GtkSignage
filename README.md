@@ -57,6 +57,8 @@ bash <(curl -fsSL https://raw.githubusercontent.com/mgroves/GtkSignage/refs/head
 
 The update script will pull the latest code / dependencies and prompt for a reboot.
 
+Notice these scripts refer to 'prod' branch. Consider that to be 'release'. I.e. any updates to that branch will be pulled in the next update.
+
 ## Usage
 
 ### Accessing the Admin Interface
@@ -104,7 +106,7 @@ GTK Signage is configured through environment variables, which can be set in the
 - `FLASK_PORT`: Port for the Flask server (default: 6969)
 - `USE_SSL`: Enable HTTPS (true/false)
 - `CACHE_DIR`: Subfolder to store cached web content (default: 'cache')
-- `CACHE_EXPIRY_HOURS`: How many hours to keep cache contente (default: 48)
+- `CACHE_EXPIRY_HOURS`: How many hours to keep cache content (default: 48)
 - `CEC_ENABLE`: Enable CEC scheduling (turning display devices on/off automatically)
 - `CEC_START`: Time to turn on device with CEC (e.g. 10:45)
 - `CEC_END`: Time to turn off device with CEC (e.g. 21:45)
@@ -130,7 +132,7 @@ Slides are stored in a JSON file (`slides.json`) in the following format:
 
 GTK Signage is available under a dual licensing model:
 
-- **Free for small businesses** operating in 1-2 physical locations
+- **Free for small businesses** operating in 1-2 physical locations (e.g. 1 or 2 ice cream shop buildings)
 - **Commercial license required** for businesses with 3+ locations
 
 For complete license terms and conditions, see [LICENSE.md](LICENSE.md).
@@ -158,7 +160,7 @@ A: I don't like Python! But, GTK seemed like the way to go with displaying conte
 A: I think my system provides a much more manageable interface and platform, and doesn't rely on chromium, which can be quite a heavy process. GTK WebView only relies on WebKit.
 
 **Q: Why did you do (weird thing in Python)?**
-A: I'm not a Python developer. This was mostly developed with an AI coding assistant. I'm open to suggestions, and please don't assume I know beans about Python, Python ecosystem, or Python idioms.
+A: I'm not a Python developer. This was mostly developed with AI coding assistants. I'm open to suggestions, and please don't assume I know beans about Python, Python ecosystem, or Python idioms.
 
 **Q: How do I ssh into the Raspberry Pi after install? I get a message "Only console users are allowed to run the X server"**
 A: `ssh -t username@host "bash --noprofile --norc"` should do it.
