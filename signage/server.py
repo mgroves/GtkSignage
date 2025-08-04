@@ -291,7 +291,7 @@ def admin_add():
             file_ext = filename.rsplit('.', 1)[1].lower() if '.' in filename else ''
             
             if file_ext not in allowed_extensions:
-                return f"File type not allowed. Allowed types: {', '.join(allowed_extensions)}", 400
+                return f"File type not allowed. Here are the allowed types: {', '.join(allowed_extensions)}", 400
             
             # Check file size (limit to 10MB)
             max_size = 10 * 1024 * 1024  # 10MB in bytes

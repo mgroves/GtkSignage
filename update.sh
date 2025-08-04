@@ -12,7 +12,12 @@ echo "Updating GtkSignage..."
 
 # Ensure required tools are available
 sudo apt update
-sudo apt install -y git libcec-dev cec-utils python3-libcec
+sudo apt install -y \
+  git python3 python3-pip python3-venv openssl \
+  python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
+  xserver-xorg xinit matchbox-window-manager x11-xserver-utils \
+  unclutter \
+  cmake libcec-dev cec-utils libudev-dev libxrandr-dev
 
 # Check for install dir
 if [ ! -d "$INSTALL_DIR" ]; then
