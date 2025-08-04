@@ -49,6 +49,14 @@ The installation script will:
 5. Optionally enable HTTPS with self-signed certificates
 6. Set up a systemd service to run at boot
 
+### Automatic Update
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/mgroves/GtkSignage/refs/heads/prod/update.sh)
+```
+
+The update script will pull the latest code / dependencies and prompt for a reboot.
+
 ## Usage
 
 ### Accessing the Admin Interface
@@ -97,7 +105,9 @@ GTK Signage is configured through environment variables, which can be set in the
 - `USE_SSL`: Enable HTTPS (true/false)
 - `CACHE_DIR`: Subfolder to store cached web content (default: 'cache')
 - `CACHE_EXPIRY_HOURS`: How many hours to keep cache contente (default: 48)
-
+- `CEC_ENABLE`: Enable CEC scheduling (turning display devices on/off automatically)
+- `CEC_START`: Time to turn on device with CEC (e.g. 10:45)
+- `CEC_END`: Time to turn off device with CEC (e.g. 21:45)
 
 ## Data Storage
 
@@ -149,6 +159,9 @@ A: I think my system provides a much more manageable interface and platform, and
 
 **Q: Why did you do (weird thing in Python)?**
 A: I'm not a Python developer. This was mostly developed with an AI coding assistant. I'm open to suggestions, and please don't assume I know beans about Python, Python ecosystem, or Python idioms.
+
+**Q: How do I ssh into the Raspberry Pi after install? I get a message "Only console users are allowed to run the X server"**
+A: `ssh -t username@host "bash --noprofile --norc"` should do it.
 
 **Q: What if I'm a crazy person and want to develop this using WSL/Windows?**
 A: You will need to use some/all of these commands when running in WSL. Don't expect this to be supported, these are really just notes for my crazy self.
