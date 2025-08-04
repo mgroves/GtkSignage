@@ -16,7 +16,8 @@ sudo apt install -y \
   git python3 python3-pip python3-venv openssl \
   python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
   xserver-xorg xinit matchbox-window-manager x11-xserver-utils \
-  unclutter libcec-dev cec-utils python3-libcec
+  unclutter \
+  cmake libcec-dev cec-utils libudev-dev libxrandr-dev
 
 # Determine invoking user for autologin + config
 if [ -n "$SUDO_UID" ]; then
@@ -44,6 +45,7 @@ source "$VENV_DIR/bin/activate"
 # Install Python packages inside venv
 echo "Installing Python packages..."
 pip install --no-cache-dir -r requirements.txt
+pip install cec  # Add this line to install the Python CEC binding
 
 # Prompt for admin credentials
 read -p "Enter GtkSignage username: " ADMIN_USERNAME
