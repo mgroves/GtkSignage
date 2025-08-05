@@ -20,7 +20,7 @@ A lightweight digital signage system combining a GTK-based fullscreen display wi
 ## Requirements
 
 ### System Requirements
-- Raspberry Pi with Debian Bookworm Lite (or similar Linux with `systemd`)
+- Raspberry Pi with Debian Bookworm Lite
 - Python 3
 - GTK 3 + WebKit2
 - X11 with `matchbox-window-manager`
@@ -42,12 +42,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/mgroves/GtkSignage/refs/head
 ```
 
 The installation script will:
-1. Install required system dependencies
-2. Clone the repository to `/opt/gtk-signage`
-3. Prompt for admin username and password
-4. Configure .env variables (Flask host and port, passwords, settings)
-5. Optionally enable HTTPS with self-signed certificates
-6. Set up a systemd service to run at boot
+
+1. Installs system dependencies (GTK, Python, X11, CEC, etc.).
+2. Clones the GtkSignage repo to /opt/gtk-signage (if not already there).
+3. Sets up a virtual environment and installs required Python packages.
+4. Prompts for setup options, including admin login, Flask settings, and optional HDMI-CEC schedule.
+5. Generates a .env config file with secrets and environment variables.
+6. Configures auto-start using .xinitrc and .bash_profile to launch on login.
+7. Sets Raspberry Pi to boot to console with autologin and offers to reboot.
 
 ### Automatic Update
 
@@ -58,6 +60,15 @@ bash <(curl -fsSL https://raw.githubusercontent.com/mgroves/GtkSignage/refs/head
 The update script will pull the latest code / dependencies and prompt for a reboot.
 
 Notice these scripts refer to 'prod' branch. Consider that to be 'release'. I.e. any updates to that branch will be pulled in the next update.
+
+The update script will:
+
+1. Installs required system packages in case anything is missing or changed.
+2. Pulls the latest code from the prod branch of the GitHub repo.
+3. Verifies and activates the virtual environment.
+4. Reinstalls or updates Python dependencies from requirements.txt.
+5. Skips setup prompts — preserves existing .env and config files.
+6. Offers to reboot to apply updates immediately.
 
 ## Usage
 

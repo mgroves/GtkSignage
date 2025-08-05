@@ -172,17 +172,6 @@ if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
   sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE_SCRIPT"
 fi
 
-# Set journald log size limit
-echo "Configuring systemd journal size limits..."
-sudo sed -i '/^#*SystemMaxUse=/d;/^#*SystemKeepFree=/d;/^#*SystemMaxFileSize=/d;/^#*SystemMaxFiles=/d' /etc/systemd/journald.conf
-sudo tee -a /etc/systemd/journald.conf > /dev/null <<EOF
-SystemMaxUse=100M
-SystemKeepFree=50M
-SystemMaxFileSize=10M
-SystemMaxFiles=10
-EOF
-sudo systemctl restart systemd-journald
-
 # Force Raspberry Pi to boot to console with autologin
 echo "Forcing boot to console with autologin..."
 sudo raspi-config nonint do_boot_behaviour B2
