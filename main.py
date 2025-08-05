@@ -18,6 +18,7 @@ from gi.repository import Gtk
 
 from signage.server import run_flask
 from signage.ui import SignageWindow
+from signage.cec_watchdog import ensure_cec_on_if_needed
 
 # Configure logging
 import os
@@ -57,3 +58,14 @@ if __name__ == "__main__":
         logging.info("Caught Ctrl+C, shutting down.")
         Gtk.main_quit()
         sys.exit(0)
+
+def run_cec_watchdog():
+    while True:
+        try:
+            ensure_cec_on_if_needed()
+            time.sleep(300)  # Check every five minutes
+        except Exception as e:
+            logging.error(f"CEC watchdog error: {e}")
+
+cec_thread = threading.Thread(target=run_cec_watchdog, daemon=True)
+cec_thread.start()
