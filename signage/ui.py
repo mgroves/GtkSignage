@@ -198,7 +198,6 @@ class SignageWindow(Gtk.Window):
         self.slide_index %= len(active_slides)
         self.current_slide = active_slides[self.slide_index]
         source = self.current_slide.source
-        logging.info(f"Showing slide: {source}")
         
         # Handle URL slides with caching
         if self.is_url(source):
