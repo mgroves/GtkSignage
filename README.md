@@ -26,7 +26,7 @@ A lightweight digital signage system combining a GTK-based fullscreen display wi
 - X11 with `matchbox-window-manager`
 
 ### Python Dependencies
-- Flask, Flask-WTF  
+- Flask, Flask-WTF
 - Jinja2  
 - python-dotenv  
 - requests  
