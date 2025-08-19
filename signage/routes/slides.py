@@ -1,29 +1,65 @@
 import os
 import logging
+import json
 from datetime import datetime
 
-from flask import Blueprint, render_template, request, redirect, url_for, send_file
+from flask import Blueprint, render_template, request, redirect, url_for, send_file, jsonify
 from signage.slidestore import SlideStore
 from signage.helpers.auth import login_required
 from signage.models import Slide
 from signage.cec_control import get_cec_status, cec_power_on, cec_power_off
+from signage.system_monitor import get_all_stats
 
 slides_bp = Blueprint("slides", __name__, template_folder="../templates/slides")
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "..", "uploads")
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+@slides_bp.route("/admin/dashboard")
+@login_required
+def admin_dashboard():
+    """
+    Render the admin dashboard page with system stats.
+
+    Returns:
+        Response: Rendered dashboard.html template with slides summary.
+    """
+    slides = SlideStore.get_all_slides()
+    return render_template("dashboard.html", slides=slides)
+
 @slides_bp.route("/admin")
 @login_required
 def admin():
     """
-    Render the admin dashboard page.
+    Render the slides management page.
 
     Returns:
         Response: Rendered admin.html template with all slides.
     """
     slides = SlideStore.get_all_slides()
     return render_template("admin.html", slides=slides)
+
+@slides_bp.route("/admin/cec")
+@login_required
+def admin_cec():
+    """
+    Render the CEC control page.
+
+    Returns:
+        Response: Rendered cec.html template.
+    """
+    return render_template("cec.html")
+
+@slides_bp.route("/admin/api/stats")
+@login_required
+def admin_api_stats():
+    """
+    API endpoint for system stats.
+
+    Returns:
+        Response: JSON with system stats.
+    """
+    return jsonify(get_all_stats())
 
 @slides_bp.route("/admin/add", methods=["GET", "POST"])
 @login_required
@@ -270,13 +306,13 @@ def admin_cec_status():
 @login_required
 def admin_cec_on():
     cec_power_on()
-    return redirect(url_for("slides.admin"))
+    return redirect(url_for("slides.admin_cec"))
 
 @slides_bp.route("/admin/cec-off", methods=["POST"])
 @login_required
 def admin_cec_off():
     cec_power_off()
-    return redirect(url_for("slides.admin"))
+    return redirect(url_for("slides.admin_cec"))
 
 @slides_bp.route("/uploads/<filename>")
 def serve_upload(filename):

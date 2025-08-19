@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}CEC Control - GTK Signage{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">CEC Display Control</h1>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Display Power Control</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center mb-4">
+                    <h2>Status: <span id="cec-status" class="badge bg-secondary">Loading...</span></h2>
+                </div>
+                
+                <div class="d-flex justify-content-center">
+                    <form method="post" action="{{ url_for('slides.admin_cec_on') }}" class="me-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-success btn-lg">
+                            <i class="bi bi-power"></i> Turn On
+                        </button>
+                    </form>
+                    
+                    <form method="post" action="{{ url_for('slides.admin_cec_off') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-danger btn-lg">
+                            <i class="bi bi-power"></i> Turn Off
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">About CEC</h5>
+            </div>
+            <div class="card-body">
+                <p>
+                    Consumer Electronics Control (CEC) is a feature of HDMI designed to allow users to command and control 
+                    devices connected through HDMI by using only one remote control.
+                </p>
+                <p>
+                    With CEC, you can control the display connected to this device, turning it on or off remotely.
+                    This is useful for power management and automation.
+                </p>
+                <p class="mb-0">
+                    <strong>Note:</strong> CEC functionality requires compatible hardware on both the display and this device.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Function to update the CEC status
+    function updateCecStatus() {
+        fetch("{{ url_for('slides.admin_cec_status') }}")
+        .then(response => response.json())
+        .then(data => {
+            const statusElement = document.getElementById("cec-status");
+            statusElement.textContent = data.status;
+            
+            // Update the badge color based on the status
+            if (data.status === "On") {
+                statusElement.className = "badge bg-success";
+            } else if (data.status === "Off") {
+                statusElement.className = "badge bg-danger";
+            } else {
+                statusElement.className = "badge bg-warning";
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching CEC status:", error);
+            document.getElementById("cec-status").textContent = "Error";
+            document.getElementById("cec-status").className = "badge bg-warning";
+        });
+    }
+    
+    // Update status immediately and then every 5 seconds
+    updateCecStatus();
+    setInterval(updateCecStatus, 5000);
+</script>
+{% endblock %}

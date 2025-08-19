@@ -1,103 +1,130 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Edit Slide - GTK Signage</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
-</head>
-<body>
-    <h1>Edit Slide</h1>
+{% extends "base.html" %}
 
-    <p><a href="{{ url_for('slides.admin') }}" class="btn">← Back to Admin</a></p>
+{% block title %}Edit Slide - GTK Signage{% endblock %}
 
-    <form action="/admin/edit/{{ index }}" method="post" onsubmit="return validateForm()">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="hidden" name="source" value="{{ slide.source }}">
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">Edit Slide</h1>
+        <p><a href="{{ url_for('slides.admin') }}" class="btn btn-secondary mb-4">← Back to Slides</a></p>
+    </div>
+</div>
 
-        <label>Source</label>
-        
-        {% if slide.source.startswith("file://") %}
-            <div class="alert alert-warning">
-                <p><strong>Note:</strong> This slide uses a file:// URL which is no longer supported. 
-                It will be automatically converted to an HTTP/HTTPS URL when you save.</p>
-                {% set filepath = slide.source[7:] %}
-                {% set encoded = filepath | urlencode %}
-                <img src="{{ url_for('serve_internal_image', encoded_path=encoded) }}"
-                    id="preview-image"
-                    alt="Slide Image"
-                    style="max-width: 200px; height: auto; cursor: pointer; transition: all 0.2s ease-in-out;"
-                    onclick="toggleImageSize(this)">
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">Edit Slide Details</h5>
             </div>
-        {% else %}
-            <p><a href="{{ slide.source }}" target="_blank">{{ slide.source }}</a></p>
-            {% if slide.source.endswith('.jpg') or slide.source.endswith('.jpeg') or slide.source.endswith('.png') or slide.source.endswith('.gif') or slide.source.endswith('.svg') or slide.source.endswith('.webp') %}
-                <img src="{{ slide.source }}"
-                    id="preview-image"
-                    alt="Slide Image"
-                    style="max-width: 200px; height: auto; cursor: pointer; transition: all 0.2s ease-in-out;"
-                    onclick="toggleImageSize(this)">
-            {% endif %}
-        {% endif %}
-        
-        <label for="duration">Duration (seconds)</label>
-        <input type="number" id="duration" name="duration" value="{{ slide.duration }}" required min="1" max="3600">
-    
-        <label for="start">Start Date & Time (optional)</label>
-        <input type="datetime-local" id="start" name="start" value="{{ slide.start or '' }}">
-    
-        <label for="end">End Date & Time (optional)</label>
-        <input type="datetime-local" id="end" name="end" value="{{ slide.end or '' }}">
-    
-        <div class="form-check">
-            <input type="checkbox" id="hide" name="hide" {% if slide and slide.hide %}checked{% endif %}>
-            <label for="hide">Hidden (do not display this slide)</label>
+            <div class="card-body">
+                <form action="{{ url_for('slides.edit_slide', index=index) }}" method="post" onsubmit="return validateForm()">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="source" value="{{ slide.source }}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Source</label>
+                        
+                        {% if slide.source.startswith("file://") %}
+                            <div class="alert alert-warning">
+                                <p><strong>Note:</strong> This slide uses a file:// URL which is no longer supported. 
+                                It will be automatically converted to an HTTP/HTTPS URL when you save.</p>
+                                {% set filepath = slide.source[7:] %}
+                                {% set encoded = filepath | urlencode %}
+                                <div class="text-center mt-3">
+                                    <img src="{{ url_for('serve_internal_image', encoded_path=encoded) }}"
+                                        id="preview-image"
+                                        alt="Slide Image"
+                                        class="img-fluid"
+                                        style="max-width: 200px; height: auto; cursor: pointer; transition: all 0.2s ease-in-out;"
+                                        onclick="toggleImageSize(this)">
+                                </div>
+                            </div>
+                        {% else %}
+                            <p><a href="{{ slide.source }}" target="_blank" class="text-break">{{ slide.source }}</a></p>
+                            {% if slide.source.endswith('.jpg') or slide.source.endswith('.jpeg') or slide.source.endswith('.png') or slide.source.endswith('.gif') or slide.source.endswith('.svg') or slide.source.endswith('.webp') %}
+                                <div class="text-center mt-3">
+                                    <img src="{{ slide.source }}"
+                                        id="preview-image"
+                                        alt="Slide Image"
+                                        class="img-fluid"
+                                        style="max-width: 200px; height: auto; cursor: pointer; transition: all 0.2s ease-in-out;"
+                                        onclick="toggleImageSize(this)">
+                                    <div class="form-text">Click image to enlarge/shrink</div>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="duration" class="form-label">Duration (seconds)</label>
+                        <input type="number" class="form-control" id="duration" name="duration" value="{{ slide.duration }}" required min="1" max="3600">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="start" class="form-label">Start Date & Time (optional)</label>
+                        <input type="datetime-local" class="form-control" id="start" name="start" value="{{ slide.start or '' }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="end" class="form-label">End Date & Time (optional)</label>
+                        <input type="datetime-local" class="form-control" id="end" name="end" value="{{ slide.end or '' }}">
+                    </div>
+                    
+                    <div class="mb-4 form-check">
+                        <input type="checkbox" class="form-check-input" id="hide" name="hide" {% if slide and slide.hide %}checked{% endif %}>
+                        <label class="form-check-label" for="hide">Hidden (do not display this slide)</label>
+                    </div>
+                    
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
         </div>
+    </div>
+</div>
+{% endblock %}
 
-        <button type="submit">Save</button>
-    </form>
+{% block scripts %}
+<script>
+function validateForm() {
+    const duration = document.getElementById('duration').value;
+    const start = document.getElementById('start').value;
+    const end = document.getElementById('end').value;
     
-    <script>
-    function validateForm() {
-        const duration = document.getElementById('duration').value;
-        const start = document.getElementById('start').value;
-        const end = document.getElementById('end').value;
-        
-        // Validate duration
-        if (!duration || isNaN(duration) || parseInt(duration) <= 0) {
-            alert("Duration must be a positive number.");
-            return false;
-        }
-        
-        if (parseInt(duration) > 3600) {
-            alert("Duration cannot exceed 3600 seconds (1 hour).");
-            return false;
-        }
-        
-        // Validate start and end times
-        if (start && end) {
-            const startDate = new Date(start);
-            const endDate = new Date(end);
-            
-            if (startDate >= endDate) {
-                alert("End date/time must be later than start date/time.");
-                return false;
-            }
-        }
-        
-        return true;
+    // Validate duration
+    if (!duration || isNaN(duration) || parseInt(duration) <= 0) {
+        alert("Duration must be a positive number.");
+        return false;
     }
-    </script>    
-    <script>
-        function toggleImageSize(img) {
-            if (img.classList.contains('expanded')) {
-                img.style.maxWidth = '200px';
-                img.classList.remove('expanded');
-            } else {
-                img.style.maxWidth = '100%';
-                img.classList.add('expanded');
-            }
-        }
-    </script>
     
-</body>
-</html>
+    if (parseInt(duration) > 3600) {
+        alert("Duration cannot exceed 3600 seconds (1 hour).");
+        return false;
+    }
+    
+    // Validate start and end times
+    if (start && end) {
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        
+        if (startDate >= endDate) {
+            alert("End date/time must be later than start date/time.");
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+function toggleImageSize(img) {
+    if (img.classList.contains('expanded')) {
+        img.style.maxWidth = '200px';
+        img.classList.remove('expanded');
+    } else {
+        img.style.maxWidth = '100%';
+        img.classList.add('expanded');
+    }
+}
+</script>
+{% endblock %}

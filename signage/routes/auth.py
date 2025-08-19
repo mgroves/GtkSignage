@@ -41,7 +41,7 @@ def login():
             return redirect(request.args.get("next") or url_for("slides.admin"))
         else:
             logging.warning(f"Failed login attempt for user: {username}")
-            error = f"Invalid credentials {admin_pass} - {password}"
+            error = f"Invalid credentials"
     
     return render_template("login.html", error=error)
 

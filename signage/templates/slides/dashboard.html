@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - GTK Signage{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h1 class="mb-4">System Dashboard</h1>
+    </div>
+</div>
+
+<div class="row">
+    <!-- CPU Usage -->
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="card-title mb-0">CPU Usage</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="display-4 mb-2" id="cpu-usage">--</div>
+                <div class="progress">
+                    <div class="progress-bar" id="cpu-progress" role="progressbar" style="width: 0%;" 
+                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Memory Usage -->
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">Memory Usage</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="display-4 mb-2" id="memory-usage">--</div>
+                <div class="progress">
+                    <div class="progress-bar bg-success" id="memory-progress" role="progressbar" style="width: 0%;" 
+                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div class="small text-muted mt-2" id="memory-details">-- / --</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Disk Usage -->
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-info text-white">
+                <h5 class="card-title mb-0">Disk Usage</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="display-4 mb-2" id="disk-usage">--</div>
+                <div class="progress">
+                    <div class="progress-bar bg-info" id="disk-progress" role="progressbar" style="width: 0%;" 
+                         aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div class="small text-muted mt-2" id="disk-details">-- / --</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Temperature -->
+    <div class="col-md-6 col-lg-3 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">CPU Temperature</h5>
+            </div>
+            <div class="card-body text-center">
+                <div class="display-4 mb-2" id="temperature">--</div>
+                <div class="small text-muted" id="temp-status">Checking...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- System Information -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="card-title mb-0">System Information</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <th scope="row">Operating System</th>
+                            <td id="system-os">--</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Hostname</th>
+                            <td id="system-hostname">--</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">CPU</th>
+                            <td id="system-cpu">--</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">CPU Cores</th>
+                            <td id="system-cores">--</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Uptime</th>
+                            <td id="system-uptime">--</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slides Summary -->
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="card-title mb-0">Slides Summary</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <th scope="row">Total Slides</th>
+                            <td>{{ slides|length }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Active Slides</th>
+                            <td>{{ slides|selectattr('hide', 'equalto', false)|list|length }}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Hidden Slides</th>
+                            <td>{{ slides|selectattr('hide', 'equalto', true)|list|length }}</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('slides.admin') }}" class="btn btn-primary">Manage Slides</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Function to format bytes to human-readable format
+    function formatBytes(bytes, decimals = 2) {
+        if (bytes === 0) return '0 Bytes';
+        
+        const k = 1024;
+        const dm = decimals < 0 ? 0 : decimals;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+        
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+    
+    // Function to format seconds to days, hours, minutes, seconds
+    function formatUptime(seconds) {
+        const days = Math.floor(seconds / (3600 * 24));
+        seconds -= days * 3600 * 24;
+        const hrs = Math.floor(seconds / 3600);
+        seconds -= hrs * 3600;
+        const mins = Math.floor(seconds / 60);
+        seconds -= mins * 60;
+        
+        let result = '';
+        if (days > 0) result += days + ' days, ';
+        if (hrs > 0 || days > 0) result += hrs + ' hours, ';
+        if (mins > 0 || hrs > 0 || days > 0) result += mins + ' minutes';
+        
+        return result;
+    }
+    
+    // Function to update the dashboard with system stats
+    function updateStats() {
+        fetch('/admin/api/stats')
+            .then(response => response.json())
+            .then(data => {
+                // Update CPU
+                if (data.cpu !== null) {
+                    document.getElementById('cpu-usage').textContent = data.cpu.toFixed(1) + '%';
+                    document.getElementById('cpu-progress').style.width = data.cpu + '%';
+                    document.getElementById('cpu-progress').setAttribute('aria-valuenow', data.cpu);
+                }
+                
+                // Update Memory
+                if (data.memory !== null) {
+                    document.getElementById('memory-usage').textContent = data.memory.percent.toFixed(1) + '%';
+                    document.getElementById('memory-progress').style.width = data.memory.percent + '%';
+                    document.getElementById('memory-progress').setAttribute('aria-valuenow', data.memory.percent);
+                    document.getElementById('memory-details').textContent = 
+                        formatBytes(data.memory.used) + ' / ' + formatBytes(data.memory.total);
+                }
+                
+                // Update Disk
+                if (data.disk !== null) {
+                    document.getElementById('disk-usage').textContent = data.disk.percent.toFixed(1) + '%';
+                    document.getElementById('disk-progress').style.width = data.disk.percent + '%';
+                    document.getElementById('disk-progress').setAttribute('aria-valuenow', data.disk.percent);
+                    document.getElementById('disk-details').textContent = 
+                        formatBytes(data.disk.used) + ' / ' + formatBytes(data.disk.total);
+                }
+                
+                // Update Temperature
+                if (data.temperature !== null) {
+                    document.getElementById('temperature').textContent = data.temperature.toFixed(1) + '°C';
+                    
+                    // Set temperature status based on value
+                    let tempStatus = 'Normal';
+                    let tempClass = 'text-success';
+                    
+                    if (data.temperature > 80) {
+                        tempStatus = 'Critical!';
+                        tempClass = 'text-danger';
+                    } else if (data.temperature > 70) {
+                        tempStatus = 'High';
+                        tempClass = 'text-warning';
+                    }
+                    
+                    document.getElementById('temp-status').textContent = tempStatus;
+                    document.getElementById('temp-status').className = 'small ' + tempClass;
+                } else {
+                    document.getElementById('temperature').textContent = 'N/A';
+                    document.getElementById('temp-status').textContent = 'Not available';
+                    document.getElementById('temp-status').className = 'small text-muted';
+                }
+                
+                // Update System Info
+                if (data.system_info !== null) {
+                    document.getElementById('system-os').textContent = 
+                        data.system_info.system + ' ' + data.system_info.release;
+                    document.getElementById('system-hostname').textContent = data.system_info.node;
+                    document.getElementById('system-cpu').textContent = data.system_info.processor || 'Unknown';
+                    document.getElementById('system-cores').textContent = data.system_info.cpu_count || 'Unknown';
+                    
+                    // Calculate uptime
+                    const uptime = Math.floor(Date.now() / 1000) - data.system_info.boot_time;
+                    document.getElementById('system-uptime').textContent = formatUptime(uptime);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching system stats:', error);
+            });
+    }
+    
+    // Update stats immediately and then every 5 seconds
+    updateStats();
+    setInterval(updateStats, 5000);
+</script>
+{% endblock %}
