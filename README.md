@@ -184,3 +184,6 @@ export CEC_FAKE=true
 export DISPLAY=$(grep -oP '(?<=nameserver\s)([0-9\.]+)' /etc/resolv.conf):0
 export LIBGL_ALWAYS_INDIRECT=1
 ```
+
+**Q: Got a roadmap?
+A: Yes. See [ROADMAP.md](ROADMAP.md)
