@@ -21,7 +21,6 @@ from signage.slidestore import SlideStore
 from signage.routes.slides import slides_bp
 from signage.routes.auth import auth_bp
 from signage.helpers.auth import login_required
-from signage.cache import URLCache
 
 load_dotenv()
 
@@ -32,6 +31,7 @@ USE_SSL = os.getenv("USE_SSL", "false").lower() == "true"
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY")
 csrf = CSRFProtect(app)
+
 
 # #######################################
 # blueprints for various routes and endpoints
@@ -124,28 +124,6 @@ def serve_internal_image(encoded_path):
 
     return send_file(full_path, mimetype="image/*")
 
-@app.route("/cache-cdn")
-def cache_cdn():
-    """
-    Cache a CDN URL locally.
-    
-    This route is used to cache Bootstrap CSS and JS files locally.
-    It takes a URL parameter and uses the URLCache class to cache the file.
-    
-    Returns:
-        Response: JSON response indicating success or failure.
-    """
-    url = request.args.get('url')
-    if not url:
-        return {"success": False, "error": "No URL provided"}, 400
-    
-    # Check if the URL is already cached and not expired
-    if URLCache.is_cached(url) and not URLCache.is_cache_expired(url):
-        return {"success": True, "cached": True, "message": "URL already cached"}
-    
-    # Cache the URL
-    success = URLCache.cache_url(url)
-    return {"success": success, "cached": success, "message": "URL cached" if success else "Failed to cache URL"}
 
 @app.route("/")
 def index():
@@ -158,6 +136,7 @@ def index():
         Response: Rendered index.html template.
     """
     return render_template("index.html")
+
 
 # Entrypoint
 def run_flask():

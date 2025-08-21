@@ -31,6 +31,17 @@ def admin_dashboard():
 @login_required
 def admin():
     """
+    Redirect to the dashboard page.
+
+    Returns:
+        Response: Redirect to the dashboard page.
+    """
+    return redirect(url_for("slides.admin_dashboard"))
+
+@slides_bp.route("/admin/slides")
+@login_required
+def admin_slides():
+    """
     Render the slides management page.
 
     Returns:
@@ -149,7 +160,7 @@ def admin_add():
         try:
             SlideStore.add_slide(slide_data)
             logging.info(f"Added new slide with source: {source}")
-            return redirect(url_for("slides.admin"))
+            return redirect(url_for("slides.admin_slides"))
         except (ValueError, TypeError) as e:
             logging.error(f"Error adding slide: {e}")
             return str(e), 400
@@ -263,7 +274,7 @@ def edit_slide(index):
                 slides[index] = updated_slide
                 SlideStore.save_slides(slides)
                 logging.info(f"Updated slide at index {index}")
-                return redirect(url_for("slides.admin"))
+                return redirect(url_for("slides.admin_slides"))
                 
             except (ValueError, TypeError) as e:
                 logging.error(f"Error creating slide object: {e}")
