@@ -134,7 +134,7 @@ def admin_add():
             
             # Create a URL for the uploaded file using the serve_upload route
             # Use request.host_url to get the base URL (including scheme, host, and port)
-            source = f"{request.host_url.rstrip('/')}{ url_for('serve_upload', filename=filename) }"
+            source = f"{request.host_url.rstrip('/')}{ url_for('slides.serve_upload', filename=filename) }"
         
         # Validate duration
         try:
@@ -207,14 +207,14 @@ def edit_slide(index):
                     # Check if the file is in the UPLOAD_FOLDER
                     if os.path.dirname(os.path.abspath(file_path)) == os.path.abspath(UPLOAD_FOLDER):
                         # Create a URL for the file using the serve_upload route
-                        source = f"{request.host_url.rstrip('/')}{ url_for('serve_upload', filename=filename) }"
+                        source = f"{request.host_url.rstrip('/')}{ url_for('slides.serve_upload', filename=filename) }"
                         logging.info(f"Converted file:// URL to HTTP/HTTPS URL: {source}")
                     else:
                         # File is not in the UPLOAD_FOLDER, copy it there
                         import shutil
                         try:
                             shutil.copy2(file_path, os.path.join(UPLOAD_FOLDER, filename))
-                            source = f"{request.host_url.rstrip('/')}{ url_for('serve_upload', filename=filename) }"
+                            source = f"{request.host_url.rstrip('/')}{ url_for('slides.serve_upload', filename=filename) }"
                             logging.info(f"Copied file to UPLOAD_FOLDER and converted to HTTP/HTTPS URL: {source}")
                         except Exception as e:
                             logging.error(f"Error copying file to UPLOAD_FOLDER: {e}")
