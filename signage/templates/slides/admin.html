@@ -70,7 +70,7 @@
                             <td>{{ slide.start|format_ampm }}</td>
                             <td>{{ slide.end|format_ampm }}</td>
                             <td>
-                                {% if slide.hide %}
+                                {% if not slide.is_active() %}
                                 <span class="badge bg-danger">Hidden</span>
                                 {% else %}
                                 <span class="badge bg-success">Visible</span>

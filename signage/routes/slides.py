@@ -306,7 +306,7 @@ def delete_slide(index):
         del slides[index]
         SlideStore.save_slides(slides)
         SlideStore.force_reload()
-    return redirect("/admin")
+    return redirect(url_for("slides.admin_slides"))
 
 @slides_bp.route("/admin/cec-status")
 @login_required
