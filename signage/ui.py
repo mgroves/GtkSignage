@@ -56,6 +56,12 @@ class SignageWindow(Gtk.Window):
         self.slide_index = 0
         self.current_slide = None
         self.show_all()
+        
+        # Track URLs that are currently being cached
+        self._caching_urls = set()
+        
+        # Track the last displayed slide to avoid redundant caching
+        self._last_displayed_slide = None
 
         # Run cache cleanup on startup and then every 6 hours
         self.cleanup_cache()
@@ -81,19 +87,55 @@ class SignageWindow(Gtk.Window):
         Ensure that a URL is cached.
         
         This method checks if a URL needs to be cached and caches it if necessary.
+        It uses a separate thread to avoid blocking the main thread.
+        It also tracks which URLs are currently being cached to avoid starting
+        multiple caching threads for the same URL.
         
         Args:
             url (str): The URL to cache.
         """
         try:
+            # Skip if this URL is already being cached
+            if url in self._caching_urls:
+                logging.debug(f"URL already being cached, skipping: {url}")
+                return
+                
             # Check if the URL is already cached and not expired
             if not URLCache.is_cached(url) or URLCache.is_cache_expired(url):
                 logging.info(f"Caching URL: {url}")
-                URLCache.cache_url(url)
+                # Add to the set of URLs being cached
+                self._caching_urls.add(url)
+                # Use a separate thread to cache the URL
+                import threading
+                thread = threading.Thread(target=self._cache_url_thread, args=(url,))
+                thread.daemon = True  # Thread will exit when main thread exits
+                thread.start()
             else:
                 logging.debug(f"URL already cached: {url}")
         except Exception as e:
             logging.error(f"Error ensuring URL is cached: {e}")
+            
+    def _cache_url_thread(self, url):
+        """
+        Cache a URL in a separate thread.
+        
+        This method is called from a separate thread to avoid blocking the main thread.
+        It removes the URL from the set of URLs being cached when it completes,
+        whether it succeeds or fails.
+        
+        Args:
+            url (str): The URL to cache.
+        """
+        try:
+            logging.debug(f"Caching URL in thread: {url}")
+            URLCache.cache_url(url)
+            logging.debug(f"Finished caching URL in thread: {url}")
+        except Exception as e:
+            logging.error(f"Error caching URL in thread: {url}, {e}")
+        finally:
+            # Remove the URL from the set of URLs being cached
+            if url in self._caching_urls:
+                self._caching_urls.remove(url)
     
     def cleanup_cache(self):
         """
@@ -162,6 +204,7 @@ class SignageWindow(Gtk.Window):
             logging.info("No active slides")
             self.slide_index = 0
             self.current_slide = None
+            self._last_displayed_slide = None
 
             # Show message prompting user to visit the admin console
             self.webview.load_html(
@@ -199,14 +242,29 @@ class SignageWindow(Gtk.Window):
         self.current_slide = active_slides[self.slide_index]
         source = self.current_slide.source
         
+        # Check if we're displaying the same slide as before
+        same_slide = (self._last_displayed_slide is not None and 
+                     self.current_slide.source == self._last_displayed_slide.source)
+        
+        # Update the last displayed slide
+        self._last_displayed_slide = self.current_slide
+        
+        # Log the slide we're showing
+        logging.info(f"Showing slide: {source}")
+        
         # Handle URL slides with caching
         if self.is_url(source):
             try:
-                # Ensure the URL is cached
-                self.ensure_cached(source)
+                # Only start caching if this is a new slide or if caching previously failed
+                if not same_slide or not URLCache.is_cached(source):
+                    # Start caching the URL in the background, but don't wait for it to complete
+                    self.ensure_cached(source)
                 
                 # Try to load the original URL first
                 self.webview.load_uri(source)
+                
+                # Note: The caching happens in a separate thread, so it won't block the slide loop
+                # If the URL can't be loaded, the on_load_failed handler will try to use the cached version
             except Exception as e:
                 logging.error(f"Error loading URL {source}: {e}")
                 
