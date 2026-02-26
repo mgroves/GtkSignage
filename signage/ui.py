@@ -214,8 +214,8 @@ class SignageWindow(Gtk.Window):
                 color: #444;
                 background: #fff;
             }}
-            h1 {{ color: #fff; }}
-            p {{ color: #ccc; }}
+            h1 {{ color: #000; }}
+            p {{ color: #000; }}
             </style>
         </head>
         <body>

@@ -1,16 +1,16 @@
-import os
 import logging
 
 from flask import Blueprint, render_template, request, redirect, url_for, session
 from dotenv import load_dotenv
 from werkzeug.security import check_password_hash, generate_password_hash
+from signage.config import get_str
 
 auth_bp = Blueprint("auth", __name__, template_folder="../templates/auth")
 
 load_dotenv()
 
-admin_user = os.getenv("ADMIN_USERNAME")
-admin_pass = os.getenv("ADMIN_PASSWORD")
+admin_user = get_str("auth", "admin_username")
+admin_pass = get_str("auth", "admin_password_hash")
 
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login():
