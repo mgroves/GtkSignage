@@ -47,12 +47,19 @@ BASE_PACKAGES=(
 
 WEBKIT_PACKAGES=()
 
-if apt-cache show gir1.2-webkit2gtk-4.1 >/dev/null 2>&1; then
+has_candidate() {
+  apt-cache policy "$1" 2>/dev/null | grep -q "Candidate: [^ (]"
+}
+
+if has_candidate gir1.2-webkit2gtk-4.1; then
+  echo "▶ Using WebKitGTK 4.1"
   WEBKIT_PACKAGES+=(gir1.2-webkit2gtk-4.1 libwebkit2gtk-4.1-0)
-elif apt-cache show gir1.2-webkit2-4.0 >/dev/null 2>&1; then
+elif has_candidate gir1.2-webkit2-4.0; then
+  echo "▶ Using WebKitGTK 4.0"
   WEBKIT_PACKAGES+=(gir1.2-webkit2-4.0 libwebkit2gtk-4.0-37)
 else
-  echo "❌ No compatible WebKitGTK GIR package found"
+  echo "❌ No installable WebKitGTK GIR package found"
+  apt-cache search webkit2gtk | sed 's/^/  /'
   exit 1
 fi
 
