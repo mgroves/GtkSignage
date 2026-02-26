@@ -1,276 +1,229 @@
 """
 Slide Store Module
 
-This module provides functionality for managing slides in the GTK Signage application.
-It handles loading, saving, and filtering slides based on their active status.
-The slides are stored in a JSON file and accessed through the SlideStore class.
+Manages loading, saving, and filtering slides for the GTK Signage application.
+Slides are stored in a JSON file whose location is defined via INI config.
 """
-import os
+
+from __future__ import annotations
+
 import json
 import logging
+import os
 from datetime import datetime
+from typing import List
 
-from .jsonfile import JSONFileHandler
-from .models import Slide
+from signage.config import load_config
+from signage.jsonfile import JSONFileHandler
+from signage.models import Slide
 
-# Get logger for this module
+
 logger = logging.getLogger(__name__)
+config = load_config()
+
+
+# ------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------
+
+SLIDE_FILE = config.get("slides", "file", fallback="slides.json")
+
+# ------------------------------------------------------------
+# Slide Store
+# ------------------------------------------------------------
 
 class SlideStore:
     """
-    A static utility class for managing slides.
-    
-    This class provides methods for loading, saving, and filtering slides.
-    It maintains a cache of slides and monitors the slide file for changes.
-    All methods are class methods as this is designed as a static utility class.
+    Static utility class for managing slides.
+
+    Uses a JSON file as backing storage and keeps an in-memory cache
+    that reloads automatically when the file changes.
     """
-    SLIDE_FILE = "slides.json"
-    _slides = []
-    _last_modified_time = 0
+
+    _slides: List[Slide] = []
+    _last_mtime: float = 0.0
     _file_handler = JSONFileHandler(SLIDE_FILE)
 
-    @classmethod
-    def _load_slides(cls):
-        """
-        Load slides from the JSON file into memory.
-        
-        This private method reads the slide data from the JSON file,
-        converts it to Slide objects, and stores them in the _slides class variable.
-        
-        If any errors occur during loading or parsing, the _slides list will be empty.
-        """
-        logger.debug(f"Loading slides from {cls.SLIDE_FILE}")
-        try:
-            raw_data = cls._file_handler.load()
-            logger.debug(f"Loaded {len(raw_data)} raw slide entries")
-            
-            cls._slides = []
-            for i, item in enumerate(raw_data):
-                try:
-                    start_time = datetime.fromisoformat(item["start"]) if item.get("start") else None
-                    end_time = datetime.fromisoformat(item["end"]) if item.get("end") else None
-                    
-                    slide = Slide(
-                        source=item["source"],
-                        duration=item["duration"],
-                        start=start_time,
-                        end=end_time,
-                        hide=item.get("hide", False)
-                    )
-                    cls._slides.append(slide)
-                    logger.debug(f"Processed slide {i+1}/{len(raw_data)}: {slide.source}")
-                except (KeyError, ValueError) as e:
-                    logger.error(f"Error parsing slide data at index {i}: {e}")
-                    logger.debug(f"Problematic slide data: {item}")
-            
-            logger.info(f"Successfully loaded {len(cls._slides)} slides")
-        except (IOError, ValueError, json.JSONDecodeError) as e:
-            logger.error(f"Error loading slides file: {e}")
-            cls._slides = []
-            logger.info("Initialized with empty slide list due to error")
+    # --------------------------------------------------------
 
     @classmethod
-    def get_active_slides(cls):
+    def _load_slides(cls) -> None:
         """
-        Get all currently active slides.
-        
-        This method checks if the slides file has been modified since the last load,
-        reloads the slides if necessary, and returns only the active slides.
-        
-        Returns:
-            list: A list of Slide objects that are currently active.
+        Load slides from disk into memory.
         """
-        logger.debug("Checking for active slides")
+        logger.debug("Loading slides from %s", SLIDE_FILE)
+
         try:
-            current_mtime = os.path.getmtime(cls.SLIDE_FILE)
-            if current_mtime != cls._last_modified_time:
-                logger.info(f"Slide file modified (mtime: {current_mtime}, last: {cls._last_modified_time})")
-                cls._last_modified_time = current_mtime
-                cls._load_slides()
-            else:
-                logger.debug("Slide file unchanged since last check")
+            raw = cls._file_handler.load()
+        except (IOError, json.JSONDecodeError) as exc:
+            logger.error("Failed to load slides file: %s", exc)
+            cls._slides = []
+            return
+
+        slides: List[Slide] = []
+
+        for idx, item in enumerate(raw):
+            try:
+                start = (
+                    datetime.fromisoformat(item["start"])
+                    if item.get("start")
+                    else None
+                )
+                end = (
+                    datetime.fromisoformat(item["end"])
+                    if item.get("end")
+                    else None
+                )
+
+                slide = Slide(
+                    source=item["source"],
+                    duration=int(item["duration"]),
+                    start=start,
+                    end=end,
+                    hide=bool(item.get("hide", False)),
+                )
+                slides.append(slide)
+
+            except Exception as exc:
+                logger.error(
+                    "Invalid slide at index %d: %s", idx, exc
+                )
+                logger.debug("Slide data: %r", item)
+
+        cls._slides = slides
+        logger.info("Loaded %d slides", len(slides))
+
+    # --------------------------------------------------------
+
+    @classmethod
+    def _reload_if_needed(cls) -> None:
+        """
+        Reload slides if the backing file has changed.
+        """
+        try:
+            mtime = os.path.getmtime(SLIDE_FILE)
         except FileNotFoundError:
-            logger.warning(f"Slide file not found: {cls.SLIDE_FILE}")
+            if cls._slides:
+                logger.warning("Slides file missing, clearing cache")
             cls._slides = []
-        
-        active_slides = [slide for slide in cls._slides if slide.is_active()]
-        logger.debug(f"Found {len(active_slides)}/{len(cls._slides)} active slides")
-        
-        if not active_slides and cls._slides:
-            logger.info("No active slides found despite having slides loaded")
-            
-        return active_slides
+            cls._last_mtime = 0
+            return
+
+        if mtime != cls._last_mtime:
+            logger.info(
+                "Slides file changed (mtime %s → %s)",
+                cls._last_mtime,
+                mtime,
+            )
+            cls._last_mtime = mtime
+            cls._load_slides()
+
+    # --------------------------------------------------------
 
     @classmethod
-    def force_reload(cls):
+    def get_active_slides(cls) -> List[Slide]:
         """
-        Force a reload of slides on the next access.
-        
-        This method resets the last modified time to ensure that the slides
-        will be reloaded from the file the next time they are accessed.
+        Return all currently active slides.
         """
-        logger.debug("Forcing reload of slides on next access")
-        cls._last_modified_time = 0
+        cls._reload_if_needed()
+
+        active = [s for s in cls._slides if s.is_active()]
+        logger.debug(
+            "Active slides: %d / %d", len(active), len(cls._slides)
+        )
+        return active
+
+    # --------------------------------------------------------
 
     @classmethod
-    def add_slide(cls, slide_data):
+    def get_all_slides(cls) -> List[Slide]:
         """
-        Add a new slide to the store.
-        
-        Args:
-            slide_data (dict): A dictionary containing the slide data.
-                Must include 'source' and 'duration' keys.
-                May optionally include 'start', 'end', and 'hide' keys.
-                
-        Raises:
-            ValueError: If any required fields are missing or invalid.
-            TypeError: If any fields have incorrect types.
-            
-        Note:
-            This method loads the current slides from the file,
-            adds the new slide, and saves the updated list back to the file.
+        Return all slides regardless of active status.
         """
-        logger.info(f"Adding new slide with source: {slide_data.get('source', 'unknown')}")
-        logger.debug(f"Full slide data: {slide_data}")
-        
-        # Validate required fields
-        required_fields = ["source", "duration"]
-        for key in required_fields:
+        cls._reload_if_needed()
+        return list(cls._slides)
+
+    # --------------------------------------------------------
+
+    @classmethod
+    def force_reload(cls) -> None:
+        """
+        Force reload on next access.
+        """
+        cls._last_mtime = 0
+
+    # --------------------------------------------------------
+
+    @classmethod
+    def save_slides(cls, slides: List[Slide]) -> None:
+        """
+        Persist a list of Slide objects to disk.
+        """
+        data = []
+
+        for s in slides:
+            data.append(
+                {
+                    "source": s.source,
+                    "duration": s.duration,
+                    "start": s.start.isoformat() if s.start else None,
+                    "end": s.end.isoformat() if s.end else None,
+                    "hide": s.hide,
+                }
+            )
+
+        cls._file_handler.save(data)
+        logger.info("Saved %d slides", len(data))
+        cls.force_reload()
+
+    # --------------------------------------------------------
+
+    @classmethod
+    def add_slide(cls, slide_data: dict) -> None:
+        """
+        Add a single slide entry and persist immediately.
+        """
+        required = ("source", "duration")
+        for key in required:
             if key not in slide_data:
-                logger.error(f"Cannot add slide: Missing required field: {key}")
                 raise ValueError(f"Missing required field: {key}")
-        
-        # Validate source
-        source = slide_data["source"]
-        if not isinstance(source, str):
-            logger.error("Source must be a string")
-            raise TypeError("Source must be a string")
-        if not source.strip():
-            logger.error("Source cannot be empty")
+
+        source = str(slide_data["source"]).strip()
+        if not source:
             raise ValueError("Source cannot be empty")
-        
-        # Validate duration
-        try:
-            duration = int(slide_data["duration"])
-            if duration <= 0:
-                logger.error("Duration must be positive")
-                raise ValueError("Duration must be positive")
-        except (ValueError, TypeError):
-            logger.error("Duration must be an integer")
-            raise TypeError("Duration must be an integer")
-        
-        # Validate start and end times
+
+        duration = int(slide_data["duration"])
+        if duration <= 0:
+            raise ValueError("Duration must be positive")
+
         start = slide_data.get("start")
         end = slide_data.get("end")
-        
-        if start:
-            try:
-                if isinstance(start, str):
-                    start = datetime.fromisoformat(start)
-            except ValueError:
-                logger.error("Invalid start time format")
-                raise ValueError("Invalid start time format")
-        
-        if end:
-            try:
-                if isinstance(end, str):
-                    end = datetime.fromisoformat(end)
-            except ValueError:
-                logger.error("Invalid end time format")
-                raise ValueError("Invalid end time format")
-        
+
+        if isinstance(start, str):
+            start = datetime.fromisoformat(start)
+        if isinstance(end, str):
+            end = datetime.fromisoformat(end)
+
         if start and end and start >= end:
-            logger.error("Start time must be before end time")
             raise ValueError("Start time must be before end time")
-        
-        # Validate hide flag
-        hide = slide_data.get("hide", False)
-        if not isinstance(hide, bool):
-            try:
-                # Convert to boolean if it's a string like "true" or "false"
-                if isinstance(hide, str):
-                    hide = hide.lower() in ("true", "yes", "1", "t", "y")
-                else:
-                    hide = bool(hide)
-            except:
-                logger.error("Hide flag must be a boolean")
-                raise TypeError("Hide flag must be a boolean")
+
+        hide = bool(slide_data.get("hide", False))
 
         try:
-            logger.debug("Loading current slides data")
-            current_data = cls._file_handler.load()
-            logger.debug(f"Loaded {len(current_data)} existing slides")
-        except (IOError, json.JSONDecodeError) as e:
-            logger.error(f"Error loading slides for adding new slide: {e}")
-            logger.info("Initializing with empty slide list due to error")
-            current_data = []
+            existing = cls._file_handler.load()
+        except Exception:
+            existing = []
 
-        # Prepare the new slide data
-        new_slide = {
-            "source": source,
-            "duration": duration,
-            "start": start.isoformat() if start else None,
-            "end": end.isoformat() if end else None,
-            "hide": hide
-        }
-        
-        logger.debug(f"Prepared new slide data: {new_slide}")
-        current_data.append(new_slide)
-
-        try:
-            logger.debug(f"Saving updated slides data with {len(current_data)} slides")
-            cls._file_handler.save(current_data)
-            logger.info(f"Successfully added new slide, total slides: {len(current_data)}")
-            cls.force_reload()
-        except (IOError, PermissionError) as e:
-            logger.error(f"Error saving slides: {e}")
-            raise
-
-    @classmethod
-    def save_slides(cls, slides):
-        """
-        Save a list of slides to the file.
-        
-        This method converts the Slide objects to dictionaries and saves them to the file.
-        It then forces a reload to ensure the in-memory slides are up-to-date.
-        
-        Args:
-            slides (list): A list of Slide objects to save.
-        """
-        logger.info(f"Saving {len(slides)} slides to file")
-        
-        data = []
-        for i, s in enumerate(slides):
-            slide_dict = {
-                "source": s.source,
-                "duration": s.duration,
-                "start": s.start.isoformat() if s.start else None,
-                "end": s.end.isoformat() if s.end else None,
-                "hide": s.hide
+        existing.append(
+            {
+                "source": source,
+                "duration": duration,
+                "start": start.isoformat() if start else None,
+                "end": end.isoformat() if end else None,
+                "hide": hide,
             }
-            data.append(slide_dict)
-            logger.debug(f"Prepared slide {i+1}/{len(slides)} for saving: {s.source}")
-        
-        try:
-            logger.debug(f"Writing {len(data)} slides to {cls.SLIDE_FILE}")
-            cls._file_handler.save(data)
-            logger.info(f"Successfully saved {len(data)} slides")
-            cls.force_reload()
-        except Exception as e:
-            logger.error(f"Error saving slides to file: {e}")
-            raise
+        )
 
-    @classmethod
-    def get_all_slides(cls):
-        """
-        Get all slides, regardless of their active status.
-        
-        This method loads the slides from the file if necessary and returns all of them.
-        
-        Returns:
-            list: A list of all Slide objects.
-        """
-        logger.debug("Getting all slides, regardless of active status")
-        cls._load_slides()
-        logger.debug(f"Returning {len(cls._slides)} total slides")
-        return cls._slides
+        cls._file_handler.save(existing)
+        logger.info("Added slide: %s", source)
+        cls.force_reload()

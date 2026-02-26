@@ -12,8 +12,17 @@ from signage.system_monitor import get_all_stats
 
 slides_bp = Blueprint("slides", __name__, template_folder="../templates/slides")
 
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "..", "uploads")
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+from signage.config import get_data_dir, load_config
+from pathlib import Path
+
+config = load_config()
+
+uploads_dir_name = config.get("storage", "uploads_dir", fallback="uploads")
+if "/" in uploads_dir_name or "\\" in uploads_dir_name:
+    raise ValueError("[storage].uploads_dir must be a directory name only")
+
+UPLOAD_FOLDER = get_data_dir() / uploads_dir_name
+UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
 @slides_bp.route("/admin/dashboard")
 @login_required

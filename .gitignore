@@ -53,3 +53,6 @@ slides.json.lock
 # cached files
 /cache
 /signage/uploads
+
+# flatpak
+.flatpak-builder

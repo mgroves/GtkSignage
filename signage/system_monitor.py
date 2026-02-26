@@ -1,120 +1,149 @@
 """
 System Monitor Module
 
-This module provides functions for monitoring system resources like CPU, memory, and temperature.
-It uses the psutil library to gather system information.
+Provides system resource metrics such as CPU, memory, disk, and temperature.
+All behavior is driven by configuration and safe for Flatpak environments.
 """
-import os
-import platform
+
+from __future__ import annotations
+
 import logging
+import platform
+from typing import Optional, Dict, Any
+
 import psutil
 
-# Get logger for this module
-logger = logging.getLogger(__name__)
+from signage.config import load_config
 
-def get_cpu_usage():
+
+logger = logging.getLogger(__name__)
+config = load_config()
+
+
+# ------------------------------------------------------------
+# Configuration
+# ------------------------------------------------------------
+
+DISK_PATH = config.get("system", "disk_path", fallback="/")
+ENABLE_TEMPERATURE = config.getboolean(
+    "system", "enable_temperature", fallback=True
+)
+
+
+# ------------------------------------------------------------
+# CPU
+# ------------------------------------------------------------
+
+def get_cpu_usage() -> Optional[float]:
     """
-    Get the current CPU usage as a percentage.
-    
+    Get current CPU usage percentage.
+
     Returns:
-        float: CPU usage percentage (0-100).
+        float or None
     """
     try:
         return psutil.cpu_percent(interval=0.5)
-    except Exception as e:
-        logger.error(f"Error getting CPU usage: {e}")
+    except Exception as exc:
+        logger.error("CPU usage error: %s", exc)
         return None
 
-def get_memory_usage():
+
+# ------------------------------------------------------------
+# Memory
+# ------------------------------------------------------------
+
+def get_memory_usage() -> Optional[Dict[str, Any]]:
     """
-    Get the current memory usage.
-    
+    Get memory usage statistics.
+
     Returns:
-        dict: Memory usage information with the following keys:
-            - total: Total physical memory in bytes
-            - available: Available memory in bytes
-            - used: Used memory in bytes
-            - percent: Percentage of memory used (0-100)
+        dict or None
     """
     try:
-        memory = psutil.virtual_memory()
+        mem = psutil.virtual_memory()
         return {
-            "total": memory.total,
-            "available": memory.available,
-            "used": memory.used,
-            "percent": memory.percent
+            "total": mem.total,
+            "available": mem.available,
+            "used": mem.used,
+            "percent": mem.percent,
         }
-    except Exception as e:
-        logger.error(f"Error getting memory usage: {e}")
+    except Exception as exc:
+        logger.error("Memory usage error: %s", exc)
         return None
 
-def get_disk_usage():
+
+# ------------------------------------------------------------
+# Disk
+# ------------------------------------------------------------
+
+def get_disk_usage() -> Optional[Dict[str, Any]]:
     """
-    Get the disk usage for the root partition.
-    
+    Get disk usage statistics for configured path.
+
     Returns:
-        dict: Disk usage information with the following keys:
-            - total: Total disk space in bytes
-            - used: Used disk space in bytes
-            - free: Free disk space in bytes
-            - percent: Percentage of disk used (0-100)
+        dict or None
     """
     try:
-        disk = psutil.disk_usage('/')
+        disk = psutil.disk_usage(DISK_PATH)
         return {
+            "path": DISK_PATH,
             "total": disk.total,
             "used": disk.used,
             "free": disk.free,
-            "percent": disk.percent
+            "percent": disk.percent,
         }
-    except Exception as e:
-        logger.error(f"Error getting disk usage: {e}")
+    except Exception as exc:
+        logger.error("Disk usage error (%s): %s", DISK_PATH, exc)
         return None
 
-def get_temperature():
+
+# ------------------------------------------------------------
+# Temperature
+# ------------------------------------------------------------
+
+def get_temperature() -> Optional[float]:
     """
-    Get the CPU temperature if available.
-    
+    Get CPU temperature in Celsius if available and enabled.
+
     Returns:
-        float or None: CPU temperature in Celsius, or None if not available.
+        float or None
     """
+    if not ENABLE_TEMPERATURE:
+        return None
+
     try:
-        # Temperature is not available on all systems
         temps = psutil.sensors_temperatures()
         if not temps:
             return None
-        
-        # Try to find CPU temperature
-        # Different systems report temperature differently
+
+        # Prefer CPU-like sensors
         for name, entries in temps.items():
-            if any(x.lower() in name.lower() for x in ['cpu', 'core', 'package']):
-                return entries[0].current
-            
-        # If we couldn't find a CPU temperature, return the first one
-        if temps:
-            first_sensor = next(iter(temps.values()))
-            if first_sensor:
-                return first_sensor[0].current
-                
+            lname = name.lower()
+            if any(k in lname for k in ("cpu", "core", "package")):
+                if entries:
+                    return entries[0].current
+
+        # Fallback to first available sensor
+        first = next(iter(temps.values()), None)
+        if first:
+            return first[0].current
+
         return None
-    except Exception as e:
-        logger.error(f"Error getting temperature: {e}")
+    except Exception as exc:
+        logger.debug("Temperature unavailable: %s", exc)
         return None
 
-def get_system_info():
+
+# ------------------------------------------------------------
+# System Info
+# ------------------------------------------------------------
+
+def get_system_info() -> Optional[Dict[str, Any]]:
     """
-    Get basic system information.
-    
+    Get basic system metadata.
+
     Returns:
-        dict: System information with the following keys:
-            - system: Operating system name
-            - node: Network node name
-            - release: Operating system release
-            - version: Operating system version
-            - machine: Machine type
-            - processor: Processor type
-            - cpu_count: Number of CPUs
-            - boot_time: System boot time (timestamp)
+        dict or None
     """
     try:
         return {
@@ -125,28 +154,28 @@ def get_system_info():
             "machine": platform.machine(),
             "processor": platform.processor(),
             "cpu_count": psutil.cpu_count(),
-            "boot_time": psutil.boot_time()
+            "boot_time": psutil.boot_time(),
         }
-    except Exception as e:
-        logger.error(f"Error getting system info: {e}")
+    except Exception as exc:
+        logger.error("System info error: %s", exc)
         return None
 
-def get_all_stats():
+
+# ------------------------------------------------------------
+# Aggregate
+# ------------------------------------------------------------
+
+def get_all_stats() -> Dict[str, Any]:
     """
-    Get all system statistics in a single call.
-    
+    Get all system statistics in one call.
+
     Returns:
-        dict: All system statistics with the following keys:
-            - cpu: CPU usage percentage
-            - memory: Memory usage information
-            - disk: Disk usage information
-            - temperature: CPU temperature in Celsius (if available)
-            - system_info: Basic system information
+        dict
     """
     return {
         "cpu": get_cpu_usage(),
         "memory": get_memory_usage(),
         "disk": get_disk_usage(),
         "temperature": get_temperature(),
-        "system_info": get_system_info()
+        "system_info": get_system_info(),
     }
