@@ -9,13 +9,26 @@ BUNDLE="$SCRIPT_DIR/GtkSignage.flatpak"
 CONFIG_DIR="$HOME/.var/app/$APP_ID/config/$APP_ID"
 CONFIG_FILE="$CONFIG_DIR/config.ini"
 
+AUTOSTART_DIR="$HOME/.config/autostart"
+AUTOSTART_FILE="$AUTOSTART_DIR/gtk-signage.desktop"
+
 echo "GtkSignage setup"
 echo "================"
 echo
 
 # -----------------------------
+# Ensure Flatpak exists
+# -----------------------------
+if ! command -v flatpak >/dev/null 2>&1; then
+  echo "Flatpak not found, installing..."
+  sudo apt update
+  sudo apt install -y flatpak
+fi
+
+# -----------------------------
 # Config setup
 # -----------------------------
+echo
 echo "Configuring GtkSignage…"
 echo
 
@@ -34,12 +47,27 @@ FLASK_PORT=$(prompt "Flask port" "6969")
 USE_SSL=$(prompt "Enable SSL?" "false")
 ADMIN_USER=$(prompt "Admin username" "admin")
 
-read -rsp "Admin password (will be hashed): " ADMIN_PASS
-echo
+# -----------------------------
+# Password prompt + confirmation
+# -----------------------------
+while true; do
+  read -rsp "Admin password: " ADMIN_PASS
+  echo
+  read -rsp "Confirm admin password: " ADMIN_PASS_CONFIRM
+  echo
+
+  if [[ -z "$ADMIN_PASS" ]]; then
+    echo "Password cannot be empty. Please try again."
+  elif [[ "$ADMIN_PASS" != "$ADMIN_PASS_CONFIRM" ]]; then
+    echo "Passwords do not match. Please try again."
+  else
+    break
+  fi
+done
 
 DATA_DIR=$(prompt "Data directory" "$HOME/.local/share/gtk-signage")
-CEC_ENABLE=$(prompt "Enable HDMI-CEC control?" "false")
-CEC_START=$(prompt "CEC start time (HH:MM)" "10:00")
+CEC_ENABLE=$(prompt "Enable HDMI-CEC control?" "true")
+CEC_START=$(prompt "CEC start time (HH:MM)" "10:30")
 CEC_END=$(prompt "CEC end time (HH:MM)" "22:00")
 
 SECRET_KEY=$(python3 - <<EOF
@@ -87,11 +115,11 @@ EOF
 
 echo "Config written to:"
 echo "  $CONFIG_FILE"
-echo
 
 # -----------------------------
-# Flatpak install
+# Flatpak install (local bundle only)
 # -----------------------------
+echo
 if flatpak info "$APP_ID" >/dev/null 2>&1; then
   echo "GtkSignage Flatpak already installed."
 else
@@ -107,9 +135,32 @@ else
   flatpak install --user --noninteractive "$BUNDLE"
 fi
 
+# -----------------------------
+# Autostart on login
+# -----------------------------
+echo
+echo "Enabling autostart on login…"
+
+mkdir -p "$AUTOSTART_DIR"
+
+cat >"$AUTOSTART_FILE" <<EOF
+[Desktop Entry]
+Type=Application
+Name=GtkSignage
+Exec=flatpak run $APP_ID
+X-GNOME-Autostart-enabled=true
+EOF
+
+echo "Autostart configured:"
+echo "  $AUTOSTART_FILE"
+
+# -----------------------------
+# Done
+# -----------------------------
 echo
 echo "Setup complete."
 echo
-echo "Run with:"
+echo "GtkSignage will start automatically on login."
+echo "Manual start:"
 echo "  flatpak run $APP_ID"
 echo
