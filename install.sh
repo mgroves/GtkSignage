@@ -51,19 +51,20 @@ has_candidate() {
   apt-cache policy "$1" 2>/dev/null | grep -q "Candidate: [^ (]"
 }
 
-WEBKIT_PACKAGES=()
-WEBKIT_VERSION=""
+echo "▶ Installing WebKitGTK"
 
-if has_candidate libwebkit2gtk-4.1-0; then
+WEBKIT_PACKAGES=()
+
+if apt-cache search '^libwebkit2gtk-4.1-0$' | grep -q libwebkit2gtk-4.1-0; then
   echo "▶ Using WebKitGTK 4.1"
   WEBKIT_PACKAGES+=(libwebkit2gtk-4.1-0)
   WEBKIT_VERSION="4.1"
-elif has_candidate libwebkit2gtk-4.0-37; then
+elif apt-cache search '^libwebkit2gtk-4.0-37$' | grep -q libwebkit2gtk-4.0-37; then
   echo "▶ Using WebKitGTK 4.0"
   WEBKIT_PACKAGES+=(libwebkit2gtk-4.0-37)
   WEBKIT_VERSION="4.0"
 else
-  echo "❌ No supported WebKitGTK runtime found"
+  echo "❌ WebKitGTK runtime not found in apt repositories"
   apt-cache search webkit2gtk | sed 's/^/  /'
   exit 1
 fi
