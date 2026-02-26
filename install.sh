@@ -17,10 +17,30 @@ echo "================"
 echo
 
 # -----------------------------
+# Verify Flatpak bundle exists
+# -----------------------------
+if [ ! -f "$BUNDLE" ]; then
+  echo
+  echo "ERROR: GtkSignage.flatpak not found."
+  echo
+  echo "Expected file:"
+  echo "  $BUNDLE"
+  echo
+  echo "Download the Flatpak bundle from:"
+  echo "  https://github.com/mgroves/GtkSignage/releases"
+  echo
+  echo "Then place GtkSignage.flatpak in the same directory as install.sh"
+  echo "and re-run this script."
+  echo
+  exit 1
+fi
+
+# -----------------------------
 # Ensure Flatpak exists
 # -----------------------------
 if ! command -v flatpak >/dev/null 2>&1; then
-  echo "Flatpak not found, installing..."
+  echo "Flatpak not found."
+  echo "Administrator password required to install it."
   sudo apt update
   sudo apt install -y flatpak
 fi
@@ -51,13 +71,15 @@ ADMIN_USER=$(prompt "Admin username" "admin")
 # Password prompt + confirmation
 # -----------------------------
 while true; do
-  read -rsp "Admin password: " ADMIN_PASS
+  read -rsp "Admin password (min 8 chars): " ADMIN_PASS
   echo
   read -rsp "Confirm admin password: " ADMIN_PASS_CONFIRM
   echo
 
   if [[ -z "$ADMIN_PASS" ]]; then
     echo "Password cannot be empty. Please try again."
+  elif [[ ${#ADMIN_PASS} -lt 8 ]]; then
+    echo "Password must be at least 8 characters."
   elif [[ "$ADMIN_PASS" != "$ADMIN_PASS_CONFIRM" ]]; then
     echo "Passwords do not match. Please try again."
   else
@@ -124,14 +146,6 @@ if flatpak info "$APP_ID" >/dev/null 2>&1; then
   echo "GtkSignage Flatpak already installed."
 else
   echo "Installing GtkSignage Flatpak bundle…"
-
-  if [ ! -f "$BUNDLE" ]; then
-    echo "ERROR: GtkSignage.flatpak not found."
-    echo "Expected at:"
-    echo "  $BUNDLE"
-    exit 1
-  fi
-
   flatpak install --user --noninteractive "$BUNDLE"
 fi
 
@@ -148,6 +162,7 @@ cat >"$AUTOSTART_FILE" <<EOF
 Type=Application
 Name=GtkSignage
 Exec=flatpak run $APP_ID
+Terminal=false
 X-GNOME-Autostart-enabled=true
 EOF
 
