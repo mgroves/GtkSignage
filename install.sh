@@ -170,6 +170,38 @@ echo "Autostart configured:"
 echo "  $AUTOSTART_FILE"
 
 # -----------------------------
+# Optional: enable auto-login (Raspberry Pi OS)
+# -----------------------------
+echo
+read -rp "Enable desktop auto-login for kiosk use? (Y/n): " ENABLE_AUTOLOGIN
+
+if [[ -z "$ENABLE_AUTOLOGIN" || "$ENABLE_AUTOLOGIN" =~ ^[Yy]$ ]]; then
+  if grep -qi "raspberry pi" /etc/os-release 2>/dev/null; then
+    echo "Configuring auto-login (Raspberry Pi OS)..."
+    echo "Administrator password required."
+
+    sudo bash -c "
+      mkdir -p /etc/lightdm
+      if [ ! -f /etc/lightdm/lightdm.conf ]; then
+        echo '[Seat:*]' > /etc/lightdm/lightdm.conf
+      fi
+
+      sed -i '/^autologin-user=/d' /etc/lightdm/lightdm.conf
+      sed -i '/^autologin-session=/d' /etc/lightdm/lightdm.conf
+
+      sed -i '/^\[Seat:\*\]/a autologin-user=$USER' /etc/lightdm/lightdm.conf
+      sed -i '/^\[Seat:\*\]/a autologin-session=lightdm-autologin' /etc/lightdm/lightdm.conf
+    "
+
+    echo "Auto-login enabled for user: $USER"
+    echo "The system will log in automatically on boot."
+  else
+    echo "Auto-login setup is only supported automatically on Raspberry Pi OS."
+    echo "Please configure auto-login manually for your distribution."
+  fi
+fi
+
+# -----------------------------
 # Done
 # -----------------------------
 echo

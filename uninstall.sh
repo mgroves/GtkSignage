@@ -53,6 +53,32 @@ else
 fi
 
 # -----------------------------
+# Optional: disable auto-login (Raspberry Pi OS)
+# -----------------------------
+echo
+read -rp "Disable desktop auto-login (if enabled)? (Y/n): " DISABLE_AUTOLOGIN
+
+if [[ -z "$DISABLE_AUTOLOGIN" || "$DISABLE_AUTOLOGIN" =~ ^[Yy]$ ]]; then
+  if grep -qi "raspberry pi" /etc/os-release 2>/dev/null; then
+    if [ -f /etc/lightdm/lightdm.conf ]; then
+      echo "Disabling auto-login (Raspberry Pi OS)..."
+      echo "Administrator password required."
+
+      sudo sed -i \
+        -e '/^autologin-user=/d' \
+        -e '/^autologin-session=/d' \
+        /etc/lightdm/lightdm.conf
+
+      echo "Auto-login disabled."
+    else
+      echo "No LightDM config found; auto-login was not configured."
+    fi
+  else
+    echo "Auto-login removal is only supported automatically on Raspberry Pi OS."
+  fi
+fi
+
+# -----------------------------
 # Done
 # -----------------------------
 echo

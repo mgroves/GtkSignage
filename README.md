@@ -1,201 +1,188 @@
 # GTK Signage
 
-A lightweight digital signage system combining a GTK-based fullscreen display with a Flask-powered admin interface. Ideal for Raspberry Pi setups powering menu boards, information kiosks, or in-store promos.
+A lightweight digital signage system combining a fullscreen GTK display with a Flask-powered admin interface. Designed primarily for Raspberry Pi kiosks, menu boards, and in-store displays, with **local caching**, **offline resilience**, and **simple lifecycle management**.
 
-> ⚠️ **Designed specifically for Raspberry Pi using Debian Bookworm Lite.** The install script assumes `systemd`, installs `matchbox-window-manager`, and configures auto-login and X11 startup.
+GTK Signage is distributed as a **Flatpak application** and managed using straightforward install, update, and uninstall scripts.
+
+---
 
 ## Features
 
-- **Web Admin Interface**: Add, edit, delete slides via browser
-- **Flexible Display**: Show web pages or uploaded images
-- **Scheduling Support**: Control slide visibility with start/end timestamps
-- **Secure Access**: Password-protected admin login with hashed credentials
-- **Local Caching**: Saves web content (HTML, JS, images, CSS) to survive internet outages
-- **Single Process Display**: Minimal overhead, fullscreen GTK WebView
-- **Auto-Start on Boot**: X11 display launches automatically after login using `matchbox-window-manager`
-- **HTTPS Support**: Optional self-signed SSL certs for admin
-- **Easy Install Script**: Sets up everything on Raspberry Pi or other Linux systems
-- **CEC**: For hardware with HDMI CEC support, to schedule and manually turn off/on display devices.
+* **Web Admin Interface**
+  Add, edit, and delete slides via a browser
 
-## Requirements
+* **Flexible Display**
+  Show web pages or uploaded images
 
-### System Requirements
-- Raspberry Pi with Debian Bookworm Lite
-- Python 3
-- GTK 3 + WebKit2
-- X11 with `matchbox-window-manager`
+* **Scheduling Support**
+  Control slide visibility with start/end timestamps
 
-### Python Dependencies
-- Flask, Flask-WTF
-- Jinja2  
-- python-dotenv  
-- requests  
-- beautifulsoup4  
-- filelock  
+* **Secure Access**
+  Password-protected admin login with hashed credentials
+
+* **Local Caching**
+  Saves web content (HTML, JS, images, CSS) to survive internet outages
+
+* **Minimal Display Stack**
+  Fullscreen GTK WebView using WebKit (no Chromium)
+
+* **Flatpak Distribution**
+  Self-contained app with predictable dependencies
+
+* **Auto-Start on Login**
+  Uses standard XDG autostart (no systemd or shell hacks)
+
+* **HTTPS Support**
+  Optional self-signed SSL certs for the admin UI
+
+* **HDMI-CEC Support**
+  Optional scheduled and manual display power control on supported hardware
+
+---
 
 ## Installation
 
-### Automatic Installation (Recommended)
+### Files Required
 
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/mgroves/GtkSignage/refs/heads/prod/install.sh)
+You need **two files in the same directory**:
+
+* `install.sh`
+* `GtkSignage.flatpak`
+
+Download the Flatpak bundle from:
+
+```
+https://github.com/mgroves/GtkSignage/releases
 ```
 
-The installation script will:
+---
 
-1. Installs system dependencies (GTK, Python, X11, CEC, etc.).
-2. Clones the GtkSignage repo to /opt/gtk-signage (if not already there).
-3. Sets up a virtual environment and installs required Python packages.
-4. Prompts for setup options, including admin login, Flask settings, and optional HDMI-CEC schedule.
-5. Generates a .env config file with secrets and environment variables.
-6. Configures auto-start using .xinitrc and .bash_profile to launch on login.
-7. Sets Raspberry Pi to boot to console with autologin and offers to reboot.
-
-### Automatic Update
+### Install
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/mgroves/GtkSignage/refs/heads/prod/update.sh)
+chmod +x install.sh
+./install.sh
 ```
 
-The update script will pull the latest code / dependencies and prompt for a reboot.
+The installer will:
 
-Notice these scripts refer to 'prod' branch. Consider that to be 'release'. I.e. any updates to that branch will be pulled in the next update.
+1. Ensure Flatpak is installed
+2. Prompt for configuration values
+3. Require and confirm an admin password
+4. Write `config.ini` to a Flatpak-visible location
+5. Install the local Flatpak bundle
+6. Configure auto-start on login using XDG autostart
+7. Optionally enable auto-login (highly recommended)
+
+---
+
+## Updating
+
+To update GTK Signage using a new Flatpak bundle:
+
+```bash
+chmod +x update.sh
+./update.sh
+```
 
 The update script will:
 
-1. Installs required system packages in case anything is missing or changed.
-2. Pulls the latest code from the prod branch of the GitHub repo.
-3. Verifies and activates the virtual environment.
-4. Reinstalls or updates Python dependencies from requirements.txt.
-5. Skips setup prompts — preserves existing .env and config files.
-6. Offers to reboot to apply updates immediately.
+1. Verify the existing config
+2. Back up `config.ini` with a timestamp
+3. Apply any future config migrations (if present)
+4. Optionally reinstall the Flatpak from a local bundle
 
-## Usage
+Configuration is preserved.
 
-### Accessing the Admin Interface
+---
 
-After installation, the admin interface is available at:
-- HTTP: `http://<your-ip>:<port>/admin`
-- HTTPS (if enabled): `https://<your-ip>:<port>/admin`
+## Uninstalling
 
-Log in with the username and password you provided during installation.
+```bash
+chmod +x uninstall.sh
+./uninstall.sh
+```
 
-### Managing Slides
+The uninstall script will:
 
-1. **Adding Slides**:
-   - Click "Add Slide" in the admin interface
-   - Enter a URL or upload a local image
-   - Set the duration (in seconds)
-   - Optionally set start and end times (leave both blank to always display)
-   - Click "Save"
+* Remove the autostart entry
+* Uninstall the Flatpak
+* Optionally remove all GTK Signage config and data
+* Optionally remove auto-login
 
-2. **Editing Slides**:
-   - Click "Edit" next to the slide you want to modify
-   - Update the slide properties
-   - Click "Save"
-
-3. **Deleting Slides**:
-   - Click "Delete" next to the slide you want to remove
-   - Confirm the deletion
-
-### Slide Properties
-
-- **Source**: URL or upload image file
-- **Duration**: How long to display the slide (in seconds)
-- **Start Time**: When the slide should start being displayed (optional)
-- **End Time**: When the slide should stop being displayed (optional)
-- **Hide**: Manually hide a slide without deleting it
+---
 
 ## Configuration
 
-GTK Signage is configured through environment variables, which can be set in the `.env` file:
+GTK Signage uses a **single INI config file**, written by `install.sh`.
 
-- `ADMIN_USERNAME`: Username for the admin interface
-- `ADMIN_PASSWORD`: Password for the admin interface
-- `FLASK_SECRET_KEY`: Secret key for Flask sessions (default: automatically generated by install)
-- `FLASK_HOST`: Host to bind the Flask server (default: 0.0.0.0)
-- `FLASK_PORT`: Port for the Flask server (default: 6969)
-- `USE_SSL`: Enable HTTPS (true/false)
-- `CACHE_DIR`: Subfolder to store cached web content (default: 'cache')
-- `CACHE_EXPIRY_HOURS`: How many hours to keep cache content (default: 48)
-- `CEC_ENABLE`: Enable CEC scheduling (turning display devices on/off automatically)
-- `CEC_START`: Time to turn on device with CEC (e.g. 10:45)
-- `CEC_END`: Time to turn off device with CEC (e.g. 21:45)
+Location:
 
-## Data Storage
-
-Slides are stored in a JSON file (`slides.json`) in the following format:
-
-```json
-[
-    {
-        "source": "https://example.com/slide1",
-        "duration": 10,
-        "start": "2023-01-01T00:00:00",
-        "end": "2023-12-31T23:59:59",
-        "hide": false
-    },
-    { ... etc ... }
-]
+```
+~/.var/app/com.mgroves.GtkSignage/config/com.mgroves.GtkSignage/config.ini
 ```
 
-## License
+You can find an example in `config.ini.example`
 
-GTK Signage is available under a dual licensing model:
+---
 
-- **Free for small businesses** operating in 1-2 physical locations (e.g. 1 or 2 ice cream shop buildings)
-- **Commercial license required** for businesses with 3+ locations
+## Admin Interface
 
-For complete license terms and conditions, see [LICENSE.md](LICENSE.md).
+Once running, the admin UI is available at:
+
+* HTTP: `http://<device-ip>:<port>/admin`
+* HTTPS (if enabled): `https://<device-ip>:<port>/admin`
+
+Log in using the credentials provided during installation.
+
+---
+
+## Slide Management
+
+### Slide Properties
+
+* **Source**: URL or uploaded image
+* **Duration**: Display time in seconds
+* **Start Time**: Optional scheduled start
+* **End Time**: Optional scheduled end
+* **Hide**: Temporarily disable without deleting
+
+Slides are stored in `slides.json` under the configured data directory.
+
+---
+
+## Licensing
+
+GTK Signage uses a **dual licensing model**:
+
+* **Free** for small businesses with 1–2 physical locations
+* **Commercial license required** for 3+ locations
+
+See [LICENSE.md](LICENSE.md) for details.
+
+---
 
 ## Support
 
-GTK Signage offers different support options depending on your license:
+* **Free support**: GitHub Issues
+  [https://github.com/mgroves/GtkSignage/issues](https://github.com/mgroves/GtkSignage/issues). The CLA is "whenever I get around to it".
 
-- **Free Support**: Available through [GitHub issues](https://github.com/mgroves/GtkSignage/issues). No Service Level Agreement (SLA) is guaranteed for free support.
-- **Commercial Support**: Users with commercial licenses may receive support with an SLA. Contact `info@grovesmanagementllc.com` for details.
+* **Commercial support**:
+  [info@grovesmanagementllc.com](mailto:info@grovesmanagementllc.com). The CLA is negotiable.
 
-## Development
+---
 
-### Linux GTK setup
+## FAQ
 
-GtkSignage requires system GTK bindings. On Debian/Ubuntu/Mint:
+**Q: Why not Chromium kiosk mode?**
+A: Chromium is heavy and fragile for long-running signage. GTK WebView + WebKit is simpler and more predictable.
 
-`sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0`
+**Q: Why Python?**
+A: GTK bindings made Python the path of least resistance, despite my dislike of Python.
 
-The virtualenv must be created with:
+**Q: Is this supported on Windows or macOS?**
+A: No. Linux only, Raspberry Pi only.
 
-`python3 -m venv venv --system-site-packages`
+**Q: Is there a roadmap?**
+A: Yes. See [ROADMAP.md](ROADMAP.md).
 
-### Contributing
-
-Pull requests are welcome! If you'd like to contribute to GTK Signage, please see our [contribution guidelines](CONTRIBUTING.md) for more information.
-
-### Frequently Asked Questions
-
-**Q: Why did you create this?**  
-A: I use digital signage in my ice cream store. I'm not satisfied with the options out there. They are too expensive, don't have any local caching, not reliable enough, too expensive, etc.
-
-**Q: Why Python?**  
-A: I don't like Python! But, GTK seemed like the way to go with displaying content, and since I couldn't make that work with .NET, I decided Python was the way to go.
-
-**Q: Why not use Chromium kiosk mode?**
-A: I think my system provides a much more manageable interface and platform, and doesn't rely on chromium, which can be quite a heavy process. GTK WebView only relies on WebKit.
-
-**Q: Why did you do (weird thing in Python)?**
-A: I'm not a Python developer. This was mostly developed with AI coding assistants. I'm open to suggestions, and please don't assume I know beans about Python, Python ecosystem, or Python idioms.
-
-**Q: How do I ssh into the Raspberry Pi after install? I get a message "Only console users are allowed to run the X server"**
-A: `ssh -t username@host "bash --noprofile --norc"` should do it.
-
-**Q: What if I'm a crazy person and want to develop this using WSL/Windows?**
-A: You will need to use some/all of these commands when running in WSL. Don't expect this to be supported, these are really just notes for my crazy self.
-```
-conda deactivate
-export CEC_FAKE=true
-export DISPLAY=$(grep -oP '(?<=nameserver\s)([0-9\.]+)' /etc/resolv.conf):0
-export LIBGL_ALWAYS_INDIRECT=1
-```
-
-**Q: Got a roadmap?
-A: Yes. See [ROADMAP.md](ROADMAP.md)
