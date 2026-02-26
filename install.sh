@@ -38,27 +38,32 @@ echo "▶ Install user: $INSTALL_OWNER"
 echo "▶ Installing system dependencies"
 
 BASE_PACKAGES=(
-  git python3 python3-pip python3-venv openssl
+  git
+  python3 python3-pip python3-venv
   python3-gi python3-gi-cairo gir1.2-gtk-3.0
+  openssl
   xserver-xorg xinit matchbox-window-manager x11-xserver-utils
   unclutter
   libcec-dev cec-utils libudev-dev libxrandr-dev
 )
 
-WEBKIT_PACKAGES=()
-
 has_candidate() {
   apt-cache policy "$1" 2>/dev/null | grep -q "Candidate: [^ (]"
 }
 
-if has_candidate gir1.2-webkit2gtk-4.1; then
+WEBKIT_PACKAGES=()
+WEBKIT_VERSION=""
+
+if has_candidate libwebkit2gtk-4.1-0; then
   echo "▶ Using WebKitGTK 4.1"
-  WEBKIT_PACKAGES+=(gir1.2-webkit2gtk-4.1 libwebkit2gtk-4.1-0)
-elif has_candidate gir1.2-webkit2-4.0; then
+  WEBKIT_PACKAGES+=(libwebkit2gtk-4.1-0)
+  WEBKIT_VERSION="4.1"
+elif has_candidate libwebkit2gtk-4.0-37; then
   echo "▶ Using WebKitGTK 4.0"
-  WEBKIT_PACKAGES+=(gir1.2-webkit2-4.0 libwebkit2gtk-4.0-37)
+  WEBKIT_PACKAGES+=(libwebkit2gtk-4.0-37)
+  WEBKIT_VERSION="4.0"
 else
-  echo "❌ No installable WebKitGTK GIR package found"
+  echo "❌ No supported WebKitGTK runtime found"
   apt-cache search webkit2gtk | sed 's/^/  /'
   exit 1
 fi
@@ -71,7 +76,8 @@ sudo apt install -y "${BASE_PACKAGES[@]}" "${WEBKIT_PACKAGES[@]}"
 # -----------------------------
 if [[ ! -d "$INSTALL_DIR/.git" ]]; then
   echo "▶ Cloning repository"
-  sudo git clone --branch "$BRANCH" "https://github.com/$REPO_USER/$REPO_NAME.git" "$INSTALL_DIR"
+  sudo git clone --branch "$BRANCH" \
+    "https://github.com/$REPO_USER/$REPO_NAME.git" "$INSTALL_DIR"
 else
   echo "▶ Updating existing repository"
   sudo git -C "$INSTALL_DIR" fetch origin
@@ -129,8 +135,6 @@ FLASK_HOST="${FLASK_HOST:-0.0.0.0}"
 read -rp "Flask port [6969]: " FLASK_PORT
 FLASK_PORT="${FLASK_PORT:-6969}"
 
-USE_SSL="false"
-
 # -----------------------------
 # CEC config
 # -----------------------------
@@ -169,6 +173,7 @@ FLASK_SECRET="$(openssl rand -hex 32)"
 # Write .env
 # -----------------------------
 echo "▶ Writing .env"
+
 cat > "$INSTALL_DIR/.env" <<EOF
 ADMIN_USERNAME=$ADMIN_USERNAME
 ADMIN_PASSWORD_HASH=$HASHED_PASSWORD
@@ -208,7 +213,6 @@ chown "$INSTALL_OWNER:$INSTALL_OWNER" "$XINITRC"
 # Start X on console login
 # -----------------------------
 PROFILE="$INSTALL_HOME/.bash_profile"
-
 touch "$PROFILE"
 chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE"
 
@@ -232,8 +236,21 @@ fi
 # -----------------------------
 # Sanity check
 # -----------------------------
-echo "▶ Verifying installation"
-"$VENV_DIR/bin/python" -c "import gi; from gi.repository import Gtk; print('GTK OK')"
+echo "▶ Verifying GTK + WebKit"
+
+"$VENV_DIR/bin/python" <<EOF
+import gi
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk
+
+try:
+    gi.require_version("WebKit2", "$WEBKIT_VERSION")
+except ValueError:
+    gi.require_version("WebKit2", "4.0")
+
+from gi.repository import WebKit2
+print("GTK + WebKit OK")
+EOF
 
 # -----------------------------
 # Finish
