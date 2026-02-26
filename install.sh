@@ -36,13 +36,28 @@ echo "▶ Install user: $INSTALL_OWNER"
 # System dependencies
 # -----------------------------
 echo "▶ Installing system dependencies"
-sudo apt update
-sudo apt install -y \
-  git python3 python3-pip python3-venv openssl \
-  python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
-  xserver-xorg xinit matchbox-window-manager x11-xserver-utils \
-  unclutter \
+
+BASE_PACKAGES=(
+  git python3 python3-pip python3-venv openssl
+  python3-gi python3-gi-cairo gir1.2-gtk-3.0
+  xserver-xorg xinit matchbox-window-manager x11-xserver-utils
+  unclutter
   libcec-dev cec-utils libudev-dev libxrandr-dev
+)
+
+WEBKIT_PACKAGES=()
+
+if apt-cache show gir1.2-webkit2gtk-4.1 >/dev/null 2>&1; then
+  WEBKIT_PACKAGES+=(gir1.2-webkit2gtk-4.1 libwebkit2gtk-4.1-0)
+elif apt-cache show gir1.2-webkit2-4.0 >/dev/null 2>&1; then
+  WEBKIT_PACKAGES+=(gir1.2-webkit2-4.0 libwebkit2gtk-4.0-37)
+else
+  echo "❌ No compatible WebKitGTK GIR package found"
+  exit 1
+fi
+
+sudo apt update
+sudo apt install -y "${BASE_PACKAGES[@]}" "${WEBKIT_PACKAGES[@]}"
 
 # -----------------------------
 # Clone or update repo
