@@ -47,30 +47,45 @@ BASE_PACKAGES=(
   libcec-dev cec-utils libudev-dev libxrandr-dev
 )
 
-has_candidate() {
-  apt-cache policy "$1" 2>/dev/null | grep -q "Candidate: [^ (]"
-}
-
-echo "▶ Installing WebKitGTK"
+echo "▶ Detecting WebKitGTK runtime"
 
 WEBKIT_PACKAGES=()
+WEBKIT_GIR_PACKAGES=()
+WEBKIT_VERSION=""
 
+# Prefer WebKitGTK 4.1
 if apt-cache search '^libwebkit2gtk-4.1-0$' | grep -q libwebkit2gtk-4.1-0; then
   echo "▶ Using WebKitGTK 4.1"
   WEBKIT_PACKAGES+=(libwebkit2gtk-4.1-0)
   WEBKIT_VERSION="4.1"
+
+  # Raspberry Pi OS needs GIR explicitly
+  if apt-cache search '^gir1.2-webkit2gtk-4.1$' | grep -q gir1.2-webkit2gtk-4.1; then
+    WEBKIT_GIR_PACKAGES+=(gir1.2-webkit2gtk-4.1)
+  fi
+
+# Fallback to WebKitGTK 4.0
 elif apt-cache search '^libwebkit2gtk-4.0-37$' | grep -q libwebkit2gtk-4.0-37; then
   echo "▶ Using WebKitGTK 4.0"
   WEBKIT_PACKAGES+=(libwebkit2gtk-4.0-37)
   WEBKIT_VERSION="4.0"
+
+  if apt-cache search '^gir1.2-webkit2gtk-4.0$' | grep -q gir1.2-webkit2gtk-4.0; then
+    WEBKIT_GIR_PACKAGES+=(gir1.2-webkit2gtk-4.0)
+  fi
+
 else
   echo "❌ WebKitGTK runtime not found in apt repositories"
   apt-cache search webkit2gtk | sed 's/^/  /'
   exit 1
 fi
 
+echo "▶ Installing system packages"
 sudo apt update
-sudo apt install -y "${BASE_PACKAGES[@]}" "${WEBKIT_PACKAGES[@]}"
+sudo apt install -y \
+  "${BASE_PACKAGES[@]}" \
+  "${WEBKIT_PACKAGES[@]}" \
+  "${WEBKIT_GIR_PACKAGES[@]}"
 
 # -----------------------------
 # Clone or update repo
