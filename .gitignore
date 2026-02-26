@@ -58,3 +58,4 @@ slides.json.lock
 .flatpak-builder
 repo
 GtkSignage.flatpak
+config.ini
