@@ -1,281 +1,115 @@
-#!/bin/bash
-set -euo pipefail
+#!/usr/bin/env bash
+set -e
+
+APP_ID="com.mgroves.GtkSignage"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BUNDLE="$SCRIPT_DIR/GtkSignage.flatpak"
+
+# ALWAYS write config where Flatpak can see it
+CONFIG_DIR="$HOME/.var/app/$APP_ID/config/$APP_ID"
+CONFIG_FILE="$CONFIG_DIR/config.ini"
+
+echo "GtkSignage setup"
+echo "================"
+echo
 
 # -----------------------------
-# Configuration
+# Config setup
 # -----------------------------
-REPO_USER="mgroves"
-REPO_NAME="GtkSignage"
-BRANCH="prod"
-INSTALL_DIR="/opt/gtk-signage"
-VENV_DIR="$INSTALL_DIR/venv"
+echo "Configuring GtkSignage…"
+echo
 
-echo "▶ Installing GtkSignage"
+mkdir -p "$CONFIG_DIR"
 
-# -----------------------------
-# Ensure running on Linux
-# -----------------------------
-if [[ "$(uname -s)" != "Linux" ]]; then
-  echo "❌ This installer must be run on Linux."
-  exit 1
-fi
+prompt() {
+  local label="$1"
+  local default="$2"
+  local var
+  read -rp "$label [$default]: " var
+  echo "${var:-$default}"
+}
 
-# -----------------------------
-# Determine invoking user
-# -----------------------------
-if [[ -n "${SUDO_UID:-}" ]]; then
-  INSTALL_OWNER="$(getent passwd "$SUDO_UID" | cut -d: -f1)"
-else
-  INSTALL_OWNER="$(whoami)"
-fi
+FLASK_HOST=$(prompt "Flask bind host" "0.0.0.0")
+FLASK_PORT=$(prompt "Flask port" "6969")
+USE_SSL=$(prompt "Enable SSL?" "false")
+ADMIN_USER=$(prompt "Admin username" "admin")
 
-INSTALL_HOME="/home/$INSTALL_OWNER"
-echo "▶ Install user: $INSTALL_OWNER"
+read -rsp "Admin password (will be hashed): " ADMIN_PASS
+echo
 
-# -----------------------------
-# System dependencies
-# -----------------------------
-echo "▶ Installing system dependencies"
+DATA_DIR=$(prompt "Data directory" "$HOME/.local/share/gtk-signage")
+CEC_ENABLE=$(prompt "Enable HDMI-CEC control?" "false")
+CEC_START=$(prompt "CEC start time (HH:MM)" "10:00")
+CEC_END=$(prompt "CEC end time (HH:MM)" "22:00")
 
-BASE_PACKAGES=(
-  git
-  python3 python3-pip python3-venv
-  python3-gi python3-gi-cairo gir1.2-gtk-3.0
-  openssl
-  xserver-xorg xinit matchbox-window-manager x11-xserver-utils
-  unclutter
-  libcec-dev cec-utils libudev-dev libxrandr-dev
+SECRET_KEY=$(python3 - <<EOF
+import secrets
+print(secrets.token_hex(32))
+EOF
 )
 
-echo "▶ Detecting WebKitGTK runtime"
-
-WEBKIT_PACKAGES=()
-WEBKIT_GIR_PACKAGES=()
-WEBKIT_VERSION=""
-
-# Prefer WebKitGTK 4.1
-if apt-cache search '^libwebkit2gtk-4.1-0$' | grep -q libwebkit2gtk-4.1-0; then
-  echo "▶ Using WebKitGTK 4.1"
-  WEBKIT_PACKAGES+=(libwebkit2gtk-4.1-0)
-  WEBKIT_VERSION="4.1"
-
-  # Raspberry Pi OS needs GIR explicitly
-  if apt-cache search '^gir1.2-webkit2gtk-4.1$' | grep -q gir1.2-webkit2gtk-4.1; then
-    WEBKIT_GIR_PACKAGES+=(gir1.2-webkit2gtk-4.1)
-  fi
-
-# Fallback to WebKitGTK 4.0
-elif apt-cache search '^libwebkit2gtk-4.0-37$' | grep -q libwebkit2gtk-4.0-37; then
-  echo "▶ Using WebKitGTK 4.0"
-  WEBKIT_PACKAGES+=(libwebkit2gtk-4.0-37)
-  WEBKIT_VERSION="4.0"
-
-  if apt-cache search '^gir1.2-webkit2gtk-4.0$' | grep -q gir1.2-webkit2gtk-4.0; then
-    WEBKIT_GIR_PACKAGES+=(gir1.2-webkit2gtk-4.0)
-  fi
-
-else
-  echo "❌ WebKitGTK runtime not found in apt repositories"
-  apt-cache search webkit2gtk | sed 's/^/  /'
-  exit 1
-fi
-
-echo "▶ Installing system packages"
-sudo apt update
-sudo apt install -y \
-  "${BASE_PACKAGES[@]}" \
-  "${WEBKIT_PACKAGES[@]}" \
-  "${WEBKIT_GIR_PACKAGES[@]}"
-
-# -----------------------------
-# Clone or update repo
-# -----------------------------
-if [[ ! -d "$INSTALL_DIR/.git" ]]; then
-  echo "▶ Cloning repository"
-  sudo git clone --branch "$BRANCH" \
-    "https://github.com/$REPO_USER/$REPO_NAME.git" "$INSTALL_DIR"
-else
-  echo "▶ Updating existing repository"
-  sudo git -C "$INSTALL_DIR" fetch origin
-  sudo git -C "$INSTALL_DIR" checkout "$BRANCH"
-  sudo git -C "$INSTALL_DIR" reset --hard "origin/$BRANCH"
-fi
-
-sudo chown -R "$INSTALL_OWNER:$INSTALL_OWNER" "$INSTALL_DIR"
-cd "$INSTALL_DIR"
-
-# -----------------------------
-# Virtual environment
-# -----------------------------
-if [[ ! -d "$VENV_DIR" ]]; then
-  echo "▶ Creating virtual environment"
-  python3 -m venv "$VENV_DIR" --system-site-packages
-fi
-
-source "$VENV_DIR/bin/activate"
-
-echo "▶ Installing Python dependencies"
-pip install --upgrade pip
-pip install --no-cache-dir -r requirements.txt
-
-# -----------------------------
-# Admin credentials
-# -----------------------------
-read -rp "Admin username [admin]: " ADMIN_USERNAME
-ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
-
-read -rsp "Admin password: " ADMIN_PASSWORD
-echo
-read -rsp "Confirm password: " CONFIRM_PASSWORD
-echo
-
-if [[ "$ADMIN_PASSWORD" != "$CONFIRM_PASSWORD" ]]; then
-  echo "❌ Passwords do not match."
-  exit 1
-fi
-
-HASHED_PASSWORD="$("$VENV_DIR/bin/python" <<EOF
+PASS_HASH=$(python3 - <<EOF
 from werkzeug.security import generate_password_hash
-import sys
-print(generate_password_hash(sys.stdin.read().rstrip()))
+print(generate_password_hash("$ADMIN_PASS"))
 EOF
-<<<"$ADMIN_PASSWORD"
-)"
+)
 
-# -----------------------------
-# Flask config
-# -----------------------------
-read -rp "Flask host [0.0.0.0]: " FLASK_HOST
-FLASK_HOST="${FLASK_HOST:-0.0.0.0}"
+echo
+echo "Writing config…"
+echo
 
-read -rp "Flask port [6969]: " FLASK_PORT
-FLASK_PORT="${FLASK_PORT:-6969}"
+cat >"$CONFIG_FILE" <<EOF
+[auth]
+admin_username = $ADMIN_USER
+admin_password_hash = $PASS_HASH
 
-# -----------------------------
-# CEC config
-# -----------------------------
-read -rp "Enable HDMI-CEC display control? [y/N]: " CEC_ENABLE_INPUT
-CEC_ENABLE_INPUT="${CEC_ENABLE_INPUT,,}"
+[flask]
+host = $FLASK_HOST
+port = $FLASK_PORT
+use_ssl = $USE_SSL
+secret_key = $SECRET_KEY
 
-CEC_ENABLE="false"
-CEC_START=""
-CEC_END=""
+[paths]
+data_dir = $DATA_DIR
 
-if [[ "$CEC_ENABLE_INPUT" == "y" || "$CEC_ENABLE_INPUT" == "yes" ]]; then
-  CEC_ENABLE="true"
+[slides]
+file = slides.json
 
-  validate_time() {
-    [[ "$1" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]]
-  }
+[storage]
+uploads_dir = uploads
 
-  while true; do
-    read -rp "CEC start time [08:00]: " CEC_START
-    CEC_START="${CEC_START:-08:00}"
-    validate_time "$CEC_START" && break
-    echo "❌ Invalid time format"
-  done
-
-  while true; do
-    read -rp "CEC end time [22:00]: " CEC_END
-    CEC_END="${CEC_END:-22:00}"
-    validate_time "$CEC_END" && break
-    echo "❌ Invalid time format"
-  done
-fi
-
-FLASK_SECRET="$(openssl rand -hex 32)"
-
-# -----------------------------
-# Write .env
-# -----------------------------
-echo "▶ Writing .env"
-
-cat > "$INSTALL_DIR/.env" <<EOF
-ADMIN_USERNAME=$ADMIN_USERNAME
-ADMIN_PASSWORD_HASH=$HASHED_PASSWORD
-
-FLASK_SECRET_KEY=$FLASK_SECRET
-FLASK_HOST=$FLASK_HOST
-FLASK_PORT=$FLASK_PORT
-USE_SSL=false
-
-CEC_ENABLE=$CEC_ENABLE
-CEC_START=$CEC_START
-CEC_END=$CEC_END
+[cec]
+enable = $CEC_ENABLE
+start = $CEC_START
+end = $CEC_END
+poll_seconds = 300
 EOF
 
-chmod 600 "$INSTALL_DIR/.env"
-chown "$INSTALL_OWNER:$INSTALL_OWNER" "$INSTALL_DIR/.env"
+echo "Config written to:"
+echo "  $CONFIG_FILE"
+echo
 
 # -----------------------------
-# X autostart
+# Flatpak install
 # -----------------------------
-XINITRC="$INSTALL_HOME/.xinitrc"
-
-cat > "$XINITRC" <<EOF
-#!/bin/bash
-matchbox-window-manager -use_titlebar no &
-unclutter -idle 0 &
-xset s off
-xset -dpms
-xset s noblank
-exec $VENV_DIR/bin/python $INSTALL_DIR/main.py
-EOF
-
-chmod +x "$XINITRC"
-chown "$INSTALL_OWNER:$INSTALL_OWNER" "$XINITRC"
-
-# -----------------------------
-# Start X on console login
-# -----------------------------
-PROFILE="$INSTALL_HOME/.bash_profile"
-touch "$PROFILE"
-chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE"
-
-if ! grep -q "startx" "$PROFILE"; then
-  cat >> "$PROFILE" <<'EOF'
-
-if [[ -z "$DISPLAY" && "$(tty)" == "/dev/tty1" ]]; then
-  exec startx
-fi
-EOF
-fi
-
-# -----------------------------
-# Pi boot mode
-# -----------------------------
-if command -v raspi-config >/dev/null; then
-  echo "▶ Enabling console autologin"
-  sudo raspi-config nonint do_boot_behaviour B2
-fi
-
-# -----------------------------
-# Sanity check
-# -----------------------------
-echo "▶ Verifying GTK + WebKit"
-
-"$VENV_DIR/bin/python" <<EOF
-import gi
-gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk
-
-try:
-    gi.require_version("WebKit2", "$WEBKIT_VERSION")
-except ValueError:
-    gi.require_version("WebKit2", "4.0")
-
-from gi.repository import WebKit2
-print("GTK + WebKit OK")
-EOF
-
-# -----------------------------
-# Finish
-# -----------------------------
-read -rp "✅ Installation complete. Reboot now? [y/N]: " REBOOT
-REBOOT="${REBOOT,,}"
-
-if [[ "$REBOOT" == "y" || "$REBOOT" == "yes" ]]; then
-  sudo reboot
+if flatpak info "$APP_ID" >/dev/null 2>&1; then
+  echo "GtkSignage Flatpak already installed."
 else
-  echo "ℹ Reboot later with: sudo reboot"
+  echo "Installing GtkSignage Flatpak bundle…"
+
+  if [ ! -f "$BUNDLE" ]; then
+    echo "ERROR: GtkSignage.flatpak not found."
+    echo "Expected at:"
+    echo "  $BUNDLE"
+    exit 1
+  fi
+
+  flatpak install --user --noninteractive "$BUNDLE"
 fi
+
+echo
+echo "Setup complete."
+echo
+echo "Run with:"
+echo "  flatpak run $APP_ID"
+echo

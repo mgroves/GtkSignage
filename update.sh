@@ -1,56 +1,100 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 set -e
 
-REPO_USER="mgroves"
-REPO_NAME="GtkSignage"
-BRANCH="prod"
-INSTALL_DIR="/opt/gtk-signage"
-VENV_DIR="$INSTALL_DIR/venv"
+APP_ID="com.mgroves.GtkSignage"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+BUNDLE="$SCRIPT_DIR/GtkSignage.flatpak"
 
-echo "Updating GtkSignage..."
+CONFIG_DIR="$HOME/.config/$APP_ID"
+CONFIG_FILE="$CONFIG_DIR/config.ini"
+BACKUP_FILE="$CONFIG_FILE.bak.$(date +%Y%m%d%H%M%S)"
 
-# Ensure required tools are available
-sudo apt update
-sudo apt install -y \
-  git python3 python3-pip python3-venv openssl \
-  python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
-  xserver-xorg xinit matchbox-window-manager x11-xserver-utils \
-  unclutter \
-  cmake libcec-dev cec-utils libudev-dev libxrandr-dev
+echo "GtkSignage update"
+echo "================="
+echo
 
-# Check for install dir
-if [ ! -d "$INSTALL_DIR" ]; then
-  echo "❌ Install directory not found: $INSTALL_DIR"
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo "No config file found."
   echo "Run install.sh first."
   exit 1
 fi
 
-cd "$INSTALL_DIR"
+# -----------------------------
+# Config safety
+# -----------------------------
+echo "Backing up config:"
+echo "  $BACKUP_FILE"
+cp "$CONFIG_FILE" "$BACKUP_FILE"
 
-echo "Fetching latest code from $BRANCH branch..."
-git fetch origin "$BRANCH"
-git reset --hard "origin/$BRANCH"
-
-# Check and activate venv
-if [ -d "$VENV_DIR" ]; then
-  echo "Activating virtual environment and installing updated dependencies..."
-  source "$VENV_DIR/bin/activate"
-  pip install --no-cache-dir -r requirements.txt
-else
-  echo "❌ Virtual environment not found: $VENV_DIR"
-  echo "Run install.sh again to set it up."
-  exit 1
-fi
-
-# Optional reboot confirmation
 echo
-read -p "✅ Update complete. Reboot now to apply changes? [y/N]: " REBOOT_ANSWER
-REBOOT_ANSWER=$(echo "$REBOOT_ANSWER" | tr '[:upper:]' '[:lower:]')
+echo "No config migrations are required for this version."
+echo
 
-if [[ "$REBOOT_ANSWER" == "y" || "$REBOOT_ANSWER" == "yes" ]]; then
-  echo "Rebooting..."
-  sudo reboot
-else
-  echo "Reboot skipped. You can reboot manually with 'sudo reboot' later."
+###############################################################################
+# FUTURE MIGRATIONS GO BELOW
+#
+# These helpers are EXAMPLES ONLY.
+# They are intentionally silly to avoid confusion with real settings.
+###############################################################################
+
+# ensure_key() {
+#   local section="$1"
+#   local key="$2"
+#   local value="$3"
+#
+#   if ! grep -q "^\[$section\]" "$CONFIG_FILE"; then
+#     echo >> "$CONFIG_FILE"
+#     echo "[$section]" >> "$CONFIG_FILE"
+#   fi
+#
+#   if ! awk "/^\[$section\]/,/^\[/{print}" "$CONFIG_FILE" | grep -q "^$key\s*="; then
+#     sed -i "/^\[$section\]/a$key = $value" "$CONFIG_FILE"
+#     echo "  added [$section].$key"
+#   fi
+# }
+
+# warn_deprecated() {
+#   local section="$1"
+#   local key="$2"
+#
+#   if awk "/^\[$section\]/,/^\[/{print}" "$CONFIG_FILE" | grep -q "^$key\s*="; then
+#     echo "  WARNING: [$section].$key is deprecated (safe to remove)"
+#   fi
+# }
+
+# ---------------------------------------------------------------------------
+# EXAMPLE (FAKE): introduce a completely fictional setting
+#
+# App v9.9 introduces user shoe size tracking (this is NOT REAL)
+#
+# ensure_key fun shoe_size 11
+# ---------------------------------------------------------------------------
+
+###############################################################################
+
+# -----------------------------
+# Flatpak update from bundle
+# -----------------------------
+echo
+read -rp "Update GtkSignage Flatpak from local bundle? [y/N]: " update_fp
+
+if [[ "$update_fp" =~ ^[Yy]$ ]]; then
+  if ! command -v flatpak >/dev/null; then
+    echo "Flatpak not installed; skipping app update."
+  elif [ ! -f "$BUNDLE" ]; then
+    echo "ERROR: GtkSignage.flatpak not found."
+    echo "Expected at:"
+    echo "  $BUNDLE"
+    exit 1
+  else
+    echo "Reinstalling GtkSignage from bundle…"
+    flatpak install --user --noninteractive --reinstall "$BUNDLE"
+  fi
 fi
+
+echo
+echo "Update complete."
+echo
+echo "If anything goes wrong, restore config with:"
+echo "  cp $BACKUP_FILE $CONFIG_FILE"
+echo

@@ -45,7 +45,6 @@ CACHE_CLEANUP_INTERVAL = config.getint(
 # ------------------------------------------------------------
 # Window
 # ------------------------------------------------------------
-
 class SignageWindow(Gtk.Window):
     """
     Main GTK window that displays signage slides.
@@ -57,9 +56,32 @@ class SignageWindow(Gtk.Window):
         self.set_default_size(1280, 720)
         self.connect("destroy", self.on_destroy)
 
+        # --------------------------------------------------------
+        # WebKit WebView (GPU acceleration disabled)
+        # --------------------------------------------------------
+
         self.webview = WebKit2.WebView()
+
+        settings = self.webview.get_settings()
+        settings.set_enable_accelerated_2d_canvas(False)
+        settings.set_enable_webgl(False)
+        settings.set_hardware_acceleration_policy(
+            WebKit2.HardwareAccelerationPolicy.NEVER
+        )
+
         self.webview.connect("load-failed", self.on_load_failed)
-        self.add(self.webview)
+
+        # --------------------------------------------------------
+        # Layout
+        # --------------------------------------------------------
+
+        container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        container.pack_start(self.webview, True, True, 0)
+        self.add(container)
+
+        # --------------------------------------------------------
+        # Slideshow state
+        # --------------------------------------------------------
 
         self.slide_index = 0
         self.current_slide = None
@@ -68,11 +90,17 @@ class SignageWindow(Gtk.Window):
 
         self.show_all()
 
+        # --------------------------------------------------------
         # Cache maintenance
+        # --------------------------------------------------------
+
         self.cleanup_cache()
         GLib.timeout_add_seconds(CACHE_CLEANUP_INTERVAL, self.cleanup_cache)
 
+        # --------------------------------------------------------
         # Start slideshow
+        # --------------------------------------------------------
+
         GLib.timeout_add_seconds(1, self.slide_loop)
 
     # --------------------------------------------------------
@@ -142,8 +170,7 @@ class SignageWindow(Gtk.Window):
 
         if not slides:
             self._show_no_slides_message()
-            GLib.timeout_add_seconds(5, self.slide_loop)
-            return False
+            return True  # keep the existing timer alive
 
         self.slide_index %= len(slides)
         self.current_slide = slides[self.slide_index]
@@ -175,28 +202,34 @@ class SignageWindow(Gtk.Window):
         self.current_slide = None
         self._last_displayed_slide = None
 
-        self.webview.load_html(
-            f"""
-            <html>
-              <head>
-                <style>
-                  body {{
-                    font-family: sans-serif;
-                    text-align: center;
-                    margin-top: 20%;
-                    color: #444;
-                  }}
-                </style>
-              </head>
-              <body>
-                <h1>No slides yet</h1>
-                <p>Add slides in the admin console.</p>
-                <p><b>{ADMIN_URL}</b></p>
-              </body>
-            </html>
-            """,
-            "about:blank",
-        )
+        html = f"""
+        <html>
+        <head>
+            <meta charset="utf-8">
+            <style>
+            body {{
+                font-family: sans-serif;
+                text-align: center;
+                margin-top: 20%;
+                color: #444;
+                background: #fff;
+            }}
+            h1 {{ color: #fff; }}
+            p {{ color: #ccc; }}
+            </style>
+        </head>
+        <body>
+            <h1>No slides configured</h1>
+            <p>Add slides in the admin console:</p>
+            <p><b>{ADMIN_URL}</b></p>
+        </body>
+        </html>
+        """
+
+        self.webview.load_html(html, None)
+
+        self.webview.show()
+        self.show_all()
 
     # --------------------------------------------------------
     # Shutdown

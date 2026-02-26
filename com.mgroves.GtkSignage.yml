@@ -4,17 +4,20 @@ runtime: org.gnome.Platform
 runtime-version: '46'
 sdk: org.gnome.Sdk
 
+add-extensions:
+  org.webkit.Platform:
+    directory: lib/webkit
+    version: '46'
+
 command: gtk-signage
 
 finish-args:
   - --share=network
+  - --share=ipc
   - --socket=x11
   - --socket=wayland
   - --device=dri
   - --filesystem=home
-
-env:
-  PYTHONPATH: /app/lib/python3.12/site-packages:/app/lib/gtk-signage
 
 modules:
   - name: python-deps
