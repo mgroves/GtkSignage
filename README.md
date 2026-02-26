@@ -155,6 +155,18 @@ GTK Signage offers different support options depending on your license:
 - **Free Support**: Available through [GitHub issues](https://github.com/mgroves/GtkSignage/issues). No Service Level Agreement (SLA) is guaranteed for free support.
 - **Commercial Support**: Users with commercial licenses may receive support with an SLA. Contact `info@grovesmanagementllc.com` for details.
 
+## Development
+
+### Linux GTK setup
+
+GtkSignage requires system GTK bindings. On Debian/Ubuntu/Mint:
+
+`sudo apt install python3-gi python3-gi-cairo gir1.2-gtk-3.0`
+
+The virtualenv must be created with:
+
+`python3 -m venv venv --system-site-packages`
+
 ### Contributing
 
 Pull requests are welcome! If you'd like to contribute to GTK Signage, please see our [contribution guidelines](CONTRIBUTING.md) for more information.

@@ -1,188 +1,226 @@
 #!/bin/bash
+set -euo pipefail
 
-set -e
-
+# -----------------------------
+# Configuration
+# -----------------------------
 REPO_USER="mgroves"
 REPO_NAME="GtkSignage"
 BRANCH="prod"
 INSTALL_DIR="/opt/gtk-signage"
 VENV_DIR="$INSTALL_DIR/venv"
 
-echo "Installing GtkSignage..."
+echo "▶ Installing GtkSignage"
 
-# Ensure dependencies
-sudo apt update
-sudo apt install -y \
-  git python3 python3-pip python3-venv openssl \
-  python3-gi gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
-  xserver-xorg xinit matchbox-window-manager x11-xserver-utils \
-  unclutter \
-  cmake libcec-dev cec-utils libudev-dev libxrandr-dev
+# -----------------------------
+# Ensure running on Linux
+# -----------------------------
+if [[ "$(uname -s)" != "Linux" ]]; then
+  echo "❌ This installer must be run on Linux."
+  exit 1
+fi
 
-# Determine invoking user for autologin + config
-if [ -n "$SUDO_UID" ]; then
+# -----------------------------
+# Determine invoking user
+# -----------------------------
+if [[ -n "${SUDO_UID:-}" ]]; then
   INSTALL_OWNER="$(getent passwd "$SUDO_UID" | cut -d: -f1)"
 else
   INSTALL_OWNER="$(whoami)"
 fi
 
-echo "Using install user: $INSTALL_OWNER"
+INSTALL_HOME="/home/$INSTALL_OWNER"
+echo "▶ Install user: $INSTALL_OWNER"
 
-# Clone the repo
-if [ ! -d "$INSTALL_DIR" ]; then
+# -----------------------------
+# System dependencies
+# -----------------------------
+echo "▶ Installing system dependencies"
+sudo apt update
+sudo apt install -y \
+  git python3 python3-pip python3-venv openssl \
+  python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-webkit2-4.0 \
+  xserver-xorg xinit matchbox-window-manager x11-xserver-utils \
+  unclutter \
+  libcec-dev cec-utils libudev-dev libxrandr-dev
+
+# -----------------------------
+# Clone or update repo
+# -----------------------------
+if [[ ! -d "$INSTALL_DIR/.git" ]]; then
+  echo "▶ Cloning repository"
   sudo git clone --branch "$BRANCH" "https://github.com/$REPO_USER/$REPO_NAME.git" "$INSTALL_DIR"
+else
+  echo "▶ Updating existing repository"
+  sudo git -C "$INSTALL_DIR" fetch origin
+  sudo git -C "$INSTALL_DIR" checkout "$BRANCH"
+  sudo git -C "$INSTALL_DIR" reset --hard "origin/$BRANCH"
 fi
 
-# Ensure user owns it
 sudo chown -R "$INSTALL_OWNER:$INSTALL_OWNER" "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
-# Create and activate virtual environment
-echo "Creating virtual environment..."
-python3 -m venv "$VENV_DIR" --system-site-packages
+# -----------------------------
+# Virtual environment
+# -----------------------------
+if [[ ! -d "$VENV_DIR" ]]; then
+  echo "▶ Creating virtual environment"
+  python3 -m venv "$VENV_DIR" --system-site-packages
+fi
+
 source "$VENV_DIR/bin/activate"
 
-# Install Python packages inside venv
-echo "Installing Python packages..."
+echo "▶ Installing Python dependencies"
+pip install --upgrade pip
 pip install --no-cache-dir -r requirements.txt
-pip install cec  # Add this line to install the Python CEC binding
 
-# Prompt for admin credentials
-read -p "Enter GtkSignage username: " ADMIN_USERNAME
-read -s -p "Enter GtkSignage password: " ADMIN_PASSWORD
+# -----------------------------
+# Admin credentials
+# -----------------------------
+read -rp "Admin username [admin]: " ADMIN_USERNAME
+ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
+
+read -rsp "Admin password: " ADMIN_PASSWORD
+echo
+read -rsp "Confirm password: " CONFIRM_PASSWORD
 echo
 
-# Hash the password using Werkzeug
-HASHED_PASSWORD=$("$VENV_DIR/bin/python" -c "from werkzeug.security import generate_password_hash; print(generate_password_hash('$ADMIN_PASSWORD'))")
+if [[ "$ADMIN_PASSWORD" != "$CONFIRM_PASSWORD" ]]; then
+  echo "❌ Passwords do not match."
+  exit 1
+fi
 
-# Prompt for Flask config
-read -p "Enter GtkSignage host [0.0.0.0]: " FLASK_HOST
-FLASK_HOST=${FLASK_HOST:-0.0.0.0}
+HASHED_PASSWORD="$("$VENV_DIR/bin/python" <<EOF
+from werkzeug.security import generate_password_hash
+import sys
+print(generate_password_hash(sys.stdin.read().rstrip()))
+EOF
+<<<"$ADMIN_PASSWORD"
+)"
 
-read -p "Enter GtkSignage port [8080]: " FLASK_PORT
-FLASK_PORT=${FLASK_PORT:-8080}
+# -----------------------------
+# Flask config
+# -----------------------------
+read -rp "Flask host [0.0.0.0]: " FLASK_HOST
+FLASK_HOST="${FLASK_HOST:-0.0.0.0}"
 
-read -p "Enable HTTPS (requires cert.pem and key.pem)? [y/N]: " USE_SSL
-USE_SSL=$(echo "$USE_SSL" | tr '[:upper:]' '[:lower:]')
-USE_SSL=${USE_SSL:-n}
-USE_SSL_VALUE="false"
+read -rp "Flask port [6969]: " FLASK_PORT
+FLASK_PORT="${FLASK_PORT:-6969}"
 
-read -p "Enter cache directory [cache]: " CACHE_DIR
-CACHE_DIR=${CACHE_DIR:-cache}
+USE_SSL="false"
 
-read -p "Enter cache expiry time in hours [48]: " CACHE_EXPIRY_HOURS
-CACHE_EXPIRY_HOURS=${CACHE_EXPIRY_HOURS:-48}
+# -----------------------------
+# CEC config
+# -----------------------------
+read -rp "Enable HDMI-CEC display control? [y/N]: " CEC_ENABLE_INPUT
+CEC_ENABLE_INPUT="${CEC_ENABLE_INPUT,,}"
 
-# Prompt to enable HDMI-CEC control
-read -p "Enable HDMI-CEC display control? [y/N]: " CEC_ENABLE_INPUT
-CEC_ENABLE_INPUT=$(echo "$CEC_ENABLE_INPUT" | tr '[:upper:]' '[:lower:]')
 CEC_ENABLE="false"
+CEC_START=""
+CEC_END=""
+
 if [[ "$CEC_ENABLE_INPUT" == "y" || "$CEC_ENABLE_INPUT" == "yes" ]]; then
   CEC_ENABLE="true"
 
-  # Function to validate HH:MM time format
   validate_time() {
     [[ "$1" =~ ^([01]?[0-9]|2[0-3]):[0-5][0-9]$ ]]
   }
 
-  # Prompt for start time
   while true; do
-    read -p "CEC start time (24h format, e.g. 08:00): " CEC_START
-    CEC_START=${CEC_START:-08:00}
-    if validate_time "$CEC_START"; then
-      break
-    else
-      echo "❌ Invalid time format. Please use HH:MM (24-hour)."
-    fi
+    read -rp "CEC start time [08:00]: " CEC_START
+    CEC_START="${CEC_START:-08:00}"
+    validate_time "$CEC_START" && break
+    echo "❌ Invalid time format"
   done
 
-  # Prompt for end time
   while true; do
-    read -p "CEC end time (24h format, e.g. 22:00): " CEC_END
-    CEC_END=${CEC_END:-22:00}
-    if ! validate_time "$CEC_END"; then
-      echo "❌ Invalid time format. Please use HH:MM (24-hour)."
-      continue
-    fi
-
-    # Compare times using minutes since midnight
-    start_minutes=$((10#${CEC_START%%:*} * 60 + 10#${CEC_START##*:}))
-    end_minutes=$((10#${CEC_END%%:*} * 60 + 10#${CEC_END##*:}))
-    if (( end_minutes <= start_minutes )); then
-      echo "❌ End time must be after start time."
-    else
-      break
-    fi
+    read -rp "CEC end time [22:00]: " CEC_END
+    CEC_END="${CEC_END:-22:00}"
+    validate_time "$CEC_END" && break
+    echo "❌ Invalid time format"
   done
-else
-  CEC_START=""
-  CEC_END=""
 fi
 
+FLASK_SECRET="$(openssl rand -hex 32)"
 
-FLASK_SECRET=$(openssl rand -hex 32)
+# -----------------------------
+# Write .env
+# -----------------------------
+echo "▶ Writing .env"
+cat > "$INSTALL_DIR/.env" <<EOF
+ADMIN_USERNAME=$ADMIN_USERNAME
+ADMIN_PASSWORD_HASH=$HASHED_PASSWORD
 
-# Write .env file
-echo "Creating .env file..."
-cat <<EOF > .env
-ADMIN_USERNAME="$ADMIN_USERNAME"
-ADMIN_PASSWORD="$HASHED_PASSWORD"
-FLASK_SECRET_KEY="$FLASK_SECRET"
-FLASK_HOST="$FLASK_HOST"
-FLASK_PORT="$FLASK_PORT"
-USE_SSL="$USE_SSL_VALUE"
-CACHE_DIR="$CACHE_DIR"
-CACHE_EXPIRY_HOURS="$CACHE_EXPIRY_HOURS"
-CEC_ENABLE="$CEC_ENABLE"
-CEC_START="$CEC_START"
-CEC_END="$CEC_END"
+FLASK_SECRET_KEY=$FLASK_SECRET
+FLASK_HOST=$FLASK_HOST
+FLASK_PORT=$FLASK_PORT
+USE_SSL=false
+
+CEC_ENABLE=$CEC_ENABLE
+CEC_START=$CEC_START
+CEC_END=$CEC_END
 EOF
 
-# Set up .xinitrc to launch the app via X
-echo "Configuring .xinitrc startup..."
+chmod 600 "$INSTALL_DIR/.env"
+chown "$INSTALL_OWNER:$INSTALL_OWNER" "$INSTALL_DIR/.env"
 
-XINITRC_PATH="/home/$INSTALL_OWNER/.xinitrc"
+# -----------------------------
+# X autostart
+# -----------------------------
+XINITRC="$INSTALL_HOME/.xinitrc"
 
-sudo tee "$XINITRC_PATH" > /dev/null <<EOF
+cat > "$XINITRC" <<EOF
 #!/bin/bash
 matchbox-window-manager -use_titlebar no &
 unclutter -idle 0 &
 xset s off
 xset -dpms
 xset s noblank
-$VENV_DIR/bin/python $INSTALL_DIR/main.py
+exec $VENV_DIR/bin/python $INSTALL_DIR/main.py
 EOF
 
-sudo chmod +x "$XINITRC_PATH"
-sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$XINITRC_PATH"
+chmod +x "$XINITRC"
+chown "$INSTALL_OWNER:$INSTALL_OWNER" "$XINITRC"
 
-# Set up autostarting X via .bash_profile
-echo "Ensuring X autostarts on login..."
-PROFILE_SCRIPT="/home/$INSTALL_OWNER/.bash_profile"
+# -----------------------------
+# Start X on console login
+# -----------------------------
+PROFILE="$INSTALL_HOME/.bash_profile"
 
-# Create if missing
-if [ ! -f "$PROFILE_SCRIPT" ]; then
-  sudo touch "$PROFILE_SCRIPT"
-  sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE_SCRIPT"
+touch "$PROFILE"
+chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE"
+
+if ! grep -q "startx" "$PROFILE"; then
+  cat >> "$PROFILE" <<'EOF'
+
+if [[ -z "$DISPLAY" && "$(tty)" == "/dev/tty1" ]]; then
+  exec startx
+fi
+EOF
 fi
 
-# Append exec startx if not present
-if ! grep -q "exec startx" "$PROFILE_SCRIPT"; then
-  echo "exec startx" | sudo tee -a "$PROFILE_SCRIPT" > /dev/null
-  sudo chown "$INSTALL_OWNER:$INSTALL_OWNER" "$PROFILE_SCRIPT"
+# -----------------------------
+# Pi boot mode
+# -----------------------------
+if command -v raspi-config >/dev/null; then
+  echo "▶ Enabling console autologin"
+  sudo raspi-config nonint do_boot_behaviour B2
 fi
 
-# Force Raspberry Pi to boot to console with autologin
-echo "Forcing boot to console with autologin..."
-sudo raspi-config nonint do_boot_behaviour B2
-echo "Boot to console with autologin enabled."
+# -----------------------------
+# Sanity check
+# -----------------------------
+echo "▶ Verifying installation"
+"$VENV_DIR/bin/python" -c "import gi; from gi.repository import Gtk; print('GTK OK')"
 
-read -p "✅ GtkSignage installed. Reboot now to start the signage system? [y/N]: " REBOOT_ANSWER
-REBOOT_ANSWER=$(echo "$REBOOT_ANSWER" | tr '[:upper:]' '[:lower:]')
+# -----------------------------
+# Finish
+# -----------------------------
+read -rp "✅ Installation complete. Reboot now? [y/N]: " REBOOT
+REBOOT="${REBOOT,,}"
 
-if [[ "$REBOOT_ANSWER" == "y" || "$REBOOT_ANSWER" == "yes" ]]; then
-  echo "Rebooting..."
+if [[ "$REBOOT" == "y" || "$REBOOT" == "yes" ]]; then
   sudo reboot
 else
-  echo "Reboot skipped. You can reboot manually with 'sudo reboot' later."
+  echo "ℹ Reboot later with: sudo reboot"
 fi
