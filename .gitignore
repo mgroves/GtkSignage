@@ -57,3 +57,4 @@ slides.json.lock
 # flatpak
 .flatpak-builder
 repo
+GtkSignage.flatpak
